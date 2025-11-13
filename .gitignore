@@ -1,0 +1,17 @@
+.idea
+.vscode
+upload
+*.exe
+*.db
+build
+*.db-journal
+.env
+.DS_Store
+.claude
+CLAUDE.md
+.cursor
+out/
+redis_data
+app_logs
+dist
+pythondemo.py
