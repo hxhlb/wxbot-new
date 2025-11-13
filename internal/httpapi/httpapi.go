@@ -1,71 +1,16 @@
 package httpapi
 
 import (
-    "encoding/json"
-    "log"
-    "net/http"
+	"net/http"
 
-    "wxbot-new/internal/wxsvc"
+	"wxbot-new/internal/httpapi/controller"
+	"wxbot-new/internal/httpapi/router"
+	"wxbot-new/internal/wxsvc"
 )
 
-// RegisterRoutes 注册 HTTP 路由
+// RegisterRoutes 组装路由：router 只做注册，controller 承担处理逻辑
 func RegisterRoutes(mux *http.ServeMux, svc *wxsvc.Service) {
-    mux.HandleFunc("/send", func(w http.ResponseWriter, r *http.Request) {
-        if r.Method != http.MethodPost {
-            http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-            return
-        }
-
-        var body map[string]any
-        if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-            http.Error(w, "invalid json", http.StatusBadRequest)
-            return
-        }
-
-        // 支持自定义 payload 或文本直发
-        var payload map[string]any
-
-        if t, ok := body["type"]; ok {
-            if data, ok2 := body["data"].(map[string]any); ok2 {
-                payload = map[string]any{
-                    "type": t,
-                    "data": data,
-                }
-            }
-        }
-
-        if payload == nil {
-            text, _ := body["text"].(string)
-            if text == "" {
-                // 兼容 message 字段
-                text, _ = body["message"].(string)
-            }
-            if text == "" {
-                http.Error(w, "text is required", http.StatusBadRequest)
-                return
-            }
-            room, _ := body["room_wxid"].(string)
-            if room == "" {
-                room = "47945916190@chatroom"
-            }
-            payload = map[string]any{
-                "type": wxsvc.MT_SEND_TEXTMSG,
-                "data": map[string]any{
-                    "room_wxid": room,
-                    "content":   text,
-                },
-            }
-        }
-
-        ok := svc.SendPayload(payload)
-        resp := map[string]any{"success": ok, "payload": payload}
-        b, _ := json.Marshal(resp)
-        if !ok {
-            w.WriteHeader(http.StatusInternalServerError)
-        }
-        if _, err := w.Write(b); err != nil {
-            log.Printf("响应写入失败: %v", err)
-        }
-    })
+	// 构造 controller，并交给 router 注册
+	sendCtl := controller.NewSendController(svc)
+	router.RegisterRoutes(mux, sendCtl)
 }
-
