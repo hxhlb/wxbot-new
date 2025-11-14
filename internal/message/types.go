@@ -76,3 +76,16 @@ type RefreshQRCodeData struct {
 	QRCode string `json:"qrcode"`
 	PID    int    `json:"pid"`
 }
+
+// FriendInfo 好友信息
+type FriendInfo struct {
+	Account  string `json:"account"`
+	Avatar   string `json:"avatar"`
+	City     string `json:"city"`
+	Country  string `json:"country"`
+	Nickname string `json:"nickname"`
+	Province string `json:"province"`
+	Remark   string `json:"remark"`
+	Sex      int    `json:"sex"`  // 性别 1男 2女 0保密
+	Wxid     string `json:"wxid"` // wxid
+}

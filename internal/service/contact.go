@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"wxbot-new/internal/message"
 )
 
-// HelperGetFriendList 获取好友列表
-func (s *WeChatService) HelperGetFriendList() error {
+// HelperGetFriendList 获取好友列表（同步方式, 带超时）
+func (s *WeChatService) HelperGetFriendList() ([]*message.FriendInfo, error) {
+	// 构造消息
 	msg := message.Message{
 		Type: message.MTFriendList,
 		Data: make(map[string]interface{}),
@@ -17,9 +19,56 @@ func (s *WeChatService) HelperGetFriendList() error {
 
 	data, err := json.Marshal(msg)
 	if err != nil {
-		return fmt.Errorf("序列化消息失败: %v", err)
+		return nil, fmt.Errorf("序列化消息失败: %v", err)
 	}
 
-	log.Printf("获取好友列表请求: %s", string(data))
-	return s.SendMessage(string(data))
+	// 使用消息类型和客户端ID注册等待响应
+	responseChan := s.responseManager.RegisterRequest(int(message.MTFriendList), s.clientID, 10*time.Second)
+
+	// 发送请求
+	log.Printf("获取好友列表请求 [msgType=%d, clientID=%d]: %s", message.MTFriendList, s.clientID, string(data))
+	if err := s.SendMessage(string(data)); err != nil {
+		s.responseManager.CancelRequest(int(message.MTFriendList), s.clientID)
+		return nil, fmt.Errorf("发送消息失败: %v", err)
+	}
+
+	// 等待响应
+	respData, err := s.responseManager.WaitForResponse(responseChan, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("等待响应超时: %v", err)
+	}
+
+	// 解析响应数据中的好友数组
+	friends := make([]*message.FriendInfo, 0)
+
+	rawList, ok := respData["data"].([]interface{})
+	if !ok {
+		log.Printf("好友列表数据格式不正确: %v", respData)
+		return friends, nil
+	}
+
+	for _, item := range rawList {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// 通过 JSON 编解码一次性映射到结构体, 简化字段处理
+		bytes, err := json.Marshal(m)
+		if err != nil {
+			log.Printf("序列化好友数据失败: %v, data=%v", err, m)
+			continue
+		}
+
+		var friend message.FriendInfo
+		if err := json.Unmarshal(bytes, &friend); err != nil {
+			log.Printf("解析好友数据失败: %v, json=%s", err, string(bytes))
+			continue
+		}
+
+		friends = append(friends, &friend)
+	}
+
+	log.Printf("获取好友列表成功, 总数: %d", len(friends))
+	return friends, nil
 }

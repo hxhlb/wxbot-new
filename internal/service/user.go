@@ -38,19 +38,15 @@ func (s *WeChatService) HelperGetCurrentLoginInfo() (*message.CurrentLoginInfoDa
 		return nil, fmt.Errorf("等待响应超时: %v", err)
 	}
 
-	// 解析响应数据
+	// 通过 JSON 编解码一次性映射到结构体, 简化字段处理
+	bytes, err := json.Marshal(respData)
+	if err != nil {
+		return nil, fmt.Errorf("序列化登录信息失败: %v", err)
+	}
+
 	loginInfo := &message.CurrentLoginInfoData{}
-	if account, ok := respData["account"].(string); ok {
-		loginInfo.Account = account
-	}
-	if avatar, ok := respData["avatar"].(string); ok {
-		loginInfo.Avatar = avatar
-	}
-	if nickname, ok := respData["nickname"].(string); ok {
-		loginInfo.Nickname = nickname
-	}
-	if wxid, ok := respData["wxid"].(string); ok {
-		loginInfo.Wxid = wxid
+	if err := json.Unmarshal(bytes, loginInfo); err != nil {
+		return nil, fmt.Errorf("解析登录信息失败: %v", err)
 	}
 
 	log.Printf("获取登录信息成功: %+v", loginInfo)
@@ -107,16 +103,15 @@ func (s *WeChatService) HelperRefreshQRCode() (*message.RefreshQRCodeData, error
 		return nil, fmt.Errorf("等待响应超时: %v", err)
 	}
 
-	// 解析响应数据
+	// 通过 JSON 编解码一次性映射到结构体, 简化字段处理
+	bytes, err := json.Marshal(respData)
+	if err != nil {
+		return nil, fmt.Errorf("序列化二维码数据失败: %v", err)
+	}
+
 	qrData := &message.RefreshQRCodeData{}
-	if file, ok := respData["file"].(string); ok {
-		qrData.File = file
-	}
-	if qrcode, ok := respData["qrcode"].(string); ok {
-		qrData.QRCode = qrcode
-	}
-	if pid, ok := respData["pid"].(float64); ok {
-		qrData.PID = int(pid)
+	if err := json.Unmarshal(bytes, qrData); err != nil {
+		return nil, fmt.Errorf("解析二维码数据失败: %v", err)
 	}
 
 	log.Printf("刷新二维码成功: %+v", qrData)

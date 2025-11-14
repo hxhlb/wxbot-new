@@ -99,3 +99,30 @@ func (h *WeChatHandler) RefreshQRCode(w http.ResponseWriter, r *http.Request) {
 
 	SuccessResponse(w, "刷新二维码成功", qrData)
 }
+
+// GetFriendList 获取好友列表
+func (h *WeChatHandler) GetFriendList(w http.ResponseWriter, r *http.Request) {
+	if h.wechatService == nil || !h.wechatService.IsRunning() {
+		ErrorResponse(w, http.StatusServiceUnavailable, "微信服务未运行")
+		return
+	}
+
+	friends, err := h.wechatService.HelperGetFriendList()
+	if err != nil {
+		log.Printf("获取好友列表失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "获取好友列表失败: "+err.Error())
+		return
+	}
+
+	// 按你提供的结构组装返回值:
+	// {
+	//   "data": [...],
+	//   "type": 11030
+	// }
+	resp := map[string]interface{}{
+		"type": 11030,
+		"data": friends,
+	}
+
+	SuccessResponse(w, "获取好友列表成功", resp)
+}
