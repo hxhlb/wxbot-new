@@ -60,6 +60,8 @@ func (r *Router) RegisterRoutes() http.Handler {
 	r.mux.HandleFunc("/api/wechat/friend-list", r.wechatHandler.GetFriendList)
 	// 获取指定好友信息
 	r.mux.HandleFunc("/api/wechat/friend-info", r.wechatHandler.GetFriendInfo)
+	// 邀请好友进群
+	r.mux.HandleFunc("/api/wechat/invite-group-member", r.wechatHandler.InviteGroupMember)
 	// 获取群列表
 	r.mux.HandleFunc("/api/wechat/group-list", r.wechatHandler.GetGroupList)
 	// 获取群成员列表
