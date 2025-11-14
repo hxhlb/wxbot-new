@@ -18,6 +18,7 @@ const (
 	MTSendGif          MessageType = 11043 // 发送GIF
 	MTChatMessage      MessageType = 11046 // 聊天消息
 	MTCurrentLoginInfo MessageType = 11028 // 当前登录信息
+	MTRefreshQRCode    MessageType = 11087 // 刷新二维码
 )
 
 // Message 消息结构
@@ -66,4 +67,11 @@ type CurrentLoginInfoData struct {
 	Avatar   string `json:"avatar"`
 	Nickname string `json:"nickname"`
 	Wxid     string `json:"wxid"`
+}
+
+// RefreshQRCodeData 刷新二维码响应数据
+type RefreshQRCodeData struct {
+	File   string `json:"file"`
+	QRCode string `json:"qrcode"`
+	PID    int    `json:"pid"`
 }

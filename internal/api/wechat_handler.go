@@ -65,3 +65,20 @@ func (h *WeChatHandler) GetCurrentLoginInfo(w http.ResponseWriter, r *http.Reque
 
 	SuccessResponse(w, "获取登录信息成功", loginInfo)
 }
+
+// RefreshQRCode 刷新二维码
+func (h *WeChatHandler) RefreshQRCode(w http.ResponseWriter, r *http.Request) {
+	if h.wechatService == nil || !h.wechatService.IsRunning() {
+		ErrorResponse(w, http.StatusServiceUnavailable, "微信服务未运行")
+		return
+	}
+
+	qrData, err := h.wechatService.HelperRefreshQRCode()
+	if err != nil {
+		log.Printf("刷新二维码失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "刷新二维码失败: "+err.Error())
+		return
+	}
+
+	SuccessResponse(w, "刷新二维码成功", qrData)
+}

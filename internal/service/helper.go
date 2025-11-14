@@ -228,3 +228,48 @@ func (s *WeChatService) HelperSendGif(toWxid, filePath string) error {
 	log.Printf("发送GIF消息: %s", string(data))
 	return s.SendMessage(string(data))
 }
+
+// HelperRefreshQRCode 刷新二维码(同步方式,带超时)
+func (s *WeChatService) HelperRefreshQRCode() (*message.RefreshQRCodeData, error) {
+	// 构造消息
+	msg := message.Message{
+		Type: message.MTRefreshQRCode,
+		Data: map[string]interface{}{},
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("序列化消息失败: %v", err)
+	}
+
+	// 使用消息类型和客户端ID注册等待响应
+	responseChan := s.responseManager.RegisterRequest(int(message.MTRefreshQRCode), s.clientID, 10*time.Second)
+
+	// 发送请求
+	log.Printf("刷新二维码请求 [msgType=%d, clientID=%d]: %s", message.MTRefreshQRCode, s.clientID, string(data))
+	if err := s.SendMessage(string(data)); err != nil {
+		s.responseManager.CancelRequest(int(message.MTRefreshQRCode), s.clientID) // 发送失败时清理注册
+		return nil, fmt.Errorf("发送消息失败: %v", err)
+	}
+
+	// 等待响应
+	respData, err := s.responseManager.WaitForResponse(responseChan, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("等待响应超时: %v", err)
+	}
+
+	// 解析响应数据
+	qrData := &message.RefreshQRCodeData{}
+	if file, ok := respData["file"].(string); ok {
+		qrData.File = file
+	}
+	if qrcode, ok := respData["qrcode"].(string); ok {
+		qrData.QRCode = qrcode
+	}
+	if pid, ok := respData["pid"].(float64); ok {
+		qrData.PID = int(pid)
+	}
+
+	log.Printf("刷新二维码成功: %+v", qrData)
+	return qrData, nil
+}
