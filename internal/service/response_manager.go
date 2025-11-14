@@ -67,7 +67,6 @@ func (rm *ResponseManager) HandleResponse(msgType int, clientID uint32, data map
 
 	request, exists := rm.pendingRequests[key]
 	if !exists {
-		log.Printf("[ResponseManager] 未找到对应的请求: msgType=%d, clientID=%d", msgType, clientID)
 		return false
 	}
 
