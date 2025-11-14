@@ -155,8 +155,8 @@ func (s *WeChatService) registerCallbacks() {
 
 // sendToCallbacks 将消息转发到配置的回调地址(异步, 仅限指定消息类型范围)
 func (s *WeChatService) sendToCallbacks(clientID uintptr, msgType int, data map[string]interface{}) {
-	// 检查消息类型是否在11046-11053范围内，或者是指定的其他值
-	if !(msgType >= 11046 && msgType <= 11053 ||
+	// 检查消息类型是否在11046-11054范围内，或者是指定的其他值
+	if !(msgType >= 11046 && msgType <= 11054 ||
 		msgType == 11058 || msgType == 11059 || msgType == 11095 ||
 		msgType == 11060 || msgType == 11061) {
 		return
