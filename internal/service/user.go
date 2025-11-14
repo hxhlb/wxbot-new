@@ -117,3 +117,49 @@ func (s *WeChatService) HelperRefreshQRCode() (*message.RefreshQRCodeData, error
 	log.Printf("刷新二维码成功: %+v", qrData)
 	return qrData, nil
 }
+
+// HelperGetMiniProgramCode 获取小程序code(同步方式,带超时)
+func (s *WeChatService) HelperGetMiniProgramCode(appID string) (*message.MiniProgramCodeData, error) {
+	// 构造消息
+	msg := message.Message{
+		Type: message.MTMiniProgramCode,
+		Data: map[string]interface{}{
+			"appid": appID,
+		},
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("序列化消息失败: %v", err)
+	}
+
+	// 使用消息类型和客户端ID注册等待响应
+	responseChan := s.responseManager.RegisterRequest(int(message.MTMiniProgramCode), s.clientID, 10*time.Second)
+
+	// 发送请求
+	log.Printf("获取小程序code请求 [msgType=%d, clientID=%d]: %s", message.MTMiniProgramCode, s.clientID, string(data))
+	if err := s.SendMessage(string(data)); err != nil {
+		s.responseManager.CancelRequest(int(message.MTMiniProgramCode), s.clientID) // 发送失败时清理注册
+		return nil, fmt.Errorf("发送消息失败: %v", err)
+	}
+
+	// 等待响应
+	respData, err := s.responseManager.WaitForResponse(responseChan, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("等待响应超时: %v", err)
+	}
+
+	// 通过 JSON 编解码一次性映射到结构体, 简化字段处理
+	bytes, err := json.Marshal(respData)
+	if err != nil {
+		return nil, fmt.Errorf("序列化小程序code数据失败: %v", err)
+	}
+
+	codeData := &message.MiniProgramCodeData{}
+	if err := json.Unmarshal(bytes, codeData); err != nil {
+		return nil, fmt.Errorf("解析小程序code数据失败: %v", err)
+	}
+
+	log.Printf("获取小程序code成功: %+v", codeData)
+	return codeData, nil
+}

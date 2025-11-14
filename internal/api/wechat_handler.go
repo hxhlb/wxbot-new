@@ -91,6 +91,24 @@ func (h *WeChatHandler) RefreshQRCode(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, "刷新二维码成功", qrData)
 }
 
+// GetMiniProgramCode 获取小程序code
+func (h *WeChatHandler) GetMiniProgramCode(w http.ResponseWriter, r *http.Request) {
+	appID := r.URL.Query().Get("appid")
+	if appID == "" {
+		ErrorResponse(w, http.StatusBadRequest, "appid不能为空")
+		return
+	}
+
+	result, err := h.wechatService.HelperGetMiniProgramCode(appID)
+	if err != nil {
+		log.Printf("获取小程序code失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "获取小程序code失败: "+err.Error())
+		return
+	}
+
+	SuccessResponse(w, "获取小程序code成功", result)
+}
+
 // GetFriendList 获取好友列表
 func (h *WeChatHandler) GetFriendList(w http.ResponseWriter, r *http.Request) {
 	friends, err := h.wechatService.HelperGetFriendList()

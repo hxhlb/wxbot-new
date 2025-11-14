@@ -8,6 +8,7 @@ const (
 	MTUserLogin        MessageType = 11025 // 用户登录
 	MTUserLogout       MessageType = 11026 // 用户登出
 	MTCurrentLoginInfo MessageType = 11028 // 当前登录信息
+	MTMiniProgramCode  MessageType = 11136 // 获取小程序code
 	MTFriendInfo       MessageType = 11029 // 指定好友信息
 	MTFriendList       MessageType = 11030 // 好友列表
 	MTGroupList        MessageType = 11031 // 群列表
@@ -78,6 +79,22 @@ type RefreshQRCodeData struct {
 	File   string `json:"file"`
 	QRCode string `json:"qrcode"`
 	PID    int    `json:"pid"`
+}
+
+// MiniProgramCodeData 获取小程序code响应数据
+type MiniProgramCodeData struct {
+	AppIconURL     string   `json:"appIconUrl"`
+	AppName        string   `json:"appName"`
+	Code           string   `json:"code"`
+	LiftSpan       int      `json:"liftSpan"`
+	OpenID         string   `json:"openId"`
+	ScopeList      []string `json:"scopeList"`
+	SessionKey     string   `json:"sessionKey"`
+	SessionTicket  string   `json:"sessionTicket"`
+	Signature      string   `json:"signature"`
+	State          string   `json:"state"`
+	BaseResponse   any      `json:"baseResponse"`
+	JSAPIBaseReply any      `json:"jsApiBaseResponse"`
 }
 
 // FriendInfo 好友信息
