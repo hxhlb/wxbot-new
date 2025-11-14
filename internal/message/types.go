@@ -10,6 +10,7 @@ const (
 	MTCurrentLoginInfo MessageType = 11028 // 当前登录信息
 	MTFriendInfo       MessageType = 11029 // 指定好友信息
 	MTFriendList       MessageType = 11030 // 好友列表
+	MTGroupList        MessageType = 11031 // 群列表
 	MTSendText         MessageType = 11036 // 发送文本消息
 	MTSendAtText       MessageType = 11037 // 发送@消息
 	MTSendCard         MessageType = 11038 // 发送卡片
@@ -89,4 +90,15 @@ type FriendInfo struct {
 	Remark   string `json:"remark"`
 	Sex      int    `json:"sex"`  // 性别 1男 2女 0保密
 	Wxid     string `json:"wxid"` // wxid
+}
+
+// GroupInfo 群信息
+type GroupInfo struct {
+	Avatar      string   `json:"avatar"`
+	IsManager   int      `json:"is_manager"`
+	ManagerWxid string   `json:"manager_wxid"`
+	Nickname    string   `json:"nickname"`
+	TotalMember int      `json:"total_member"`
+	Wxid        string   `json:"wxid"`
+	MemberList  []string `json:"member_list,omitempty"`
 }

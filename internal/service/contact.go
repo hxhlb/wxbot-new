@@ -72,6 +72,70 @@ func (s *WeChatService) HelperGetFriendList() ([]*message.FriendInfo, error) {
 	return friends, nil
 }
 
+// HelperGetGroupList 获取群列表（同步方式, 带超时）
+func (s *WeChatService) HelperGetGroupList(detail int) ([]*message.GroupInfo, error) {
+	// 构造消息
+	msg := message.Message{
+		Type: message.MTGroupList,
+		Data: map[string]interface{}{
+			"detail": detail,
+		},
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("序列化消息失败: %v", err)
+	}
+
+	// 使用消息类型和客户端ID注册等待响应
+	responseChan := s.responseManager.RegisterRequest(int(message.MTGroupList), s.clientID, 10*time.Second)
+
+	// 发送请求
+	log.Printf("获取群列表请求 [msgType=%d, clientID=%d, detail=%d]: %s", message.MTGroupList, s.clientID, detail, string(data))
+	if err := s.SendMessage(string(data)); err != nil {
+		s.responseManager.CancelRequest(int(message.MTGroupList), s.clientID)
+		return nil, fmt.Errorf("发送消息失败: %v", err)
+	}
+
+	// 等待响应
+	respData, err := s.responseManager.WaitForResponse(responseChan, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("等待响应超时: %v", err)
+	}
+
+	groups := make([]*message.GroupInfo, 0)
+
+	rawList, ok := respData["data"].([]interface{})
+	if !ok {
+		log.Printf("群列表数据格式不正确: %v", respData)
+		return groups, nil
+	}
+
+	for _, item := range rawList {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		bytes, err := json.Marshal(m)
+		if err != nil {
+			log.Printf("序列化群数据失败: %v, data=%v", err, m)
+			continue
+		}
+
+		var group message.GroupInfo
+		if err := json.Unmarshal(bytes, &group); err != nil {
+			log.Printf("解析群数据失败: %v, json=%s", err, string(bytes))
+			continue
+		}
+
+		groups = append(groups, &group)
+	}
+
+	log.Printf("获取群列表成功, 总数: %d", len(groups))
+	return groups, nil
+}
+
 // HelperGetFriendInfo 获取指定好友信息（同步方式, 带超时）
 func (s *WeChatService) HelperGetFriendInfo(wxid string) (*message.FriendInfo, error) {
 	// 构造消息

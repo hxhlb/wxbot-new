@@ -3,6 +3,7 @@ package api
 import (
 	"log"
 	"net/http"
+	"strconv"
 
 	"wxbot-new/internal/service"
 )
@@ -115,4 +116,33 @@ func (h *WeChatHandler) GetFriendInfo(w http.ResponseWriter, r *http.Request) {
 
 	// 直接返回好友对象
 	SuccessResponse(w, "获取好友信息成功", friend)
+}
+
+// GetGroupList 获取群列表
+func (h *WeChatHandler) GetGroupList(w http.ResponseWriter, r *http.Request) {
+	detail := 0
+	if dStr := r.URL.Query().Get("detail"); dStr != "" {
+		d, err := strconv.Atoi(dStr)
+		if err != nil || (d != 0 && d != 1) {
+			ErrorResponse(w, http.StatusBadRequest, "detail参数仅支持0或1")
+			return
+		}
+		detail = d
+	}
+
+	groups, err := h.wechatService.HelperGetGroupList(detail)
+	if err != nil {
+		log.Printf("获取群列表失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "获取群列表失败: "+err.Error())
+		return
+	}
+
+	// 当 detail=0 时, 不返回 member_list 字段
+	if detail == 0 {
+		for _, g := range groups {
+			g.MemberList = nil
+		}
+	}
+
+	SuccessResponse(w, "获取群列表成功", groups)
 }
