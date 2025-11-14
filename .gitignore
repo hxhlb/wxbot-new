@@ -39,3 +39,4 @@ __pycache__/
 # Go
 vendor/
 go.sum
+config.json
