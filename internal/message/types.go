@@ -4,27 +4,28 @@ package message
 type MessageType int
 
 const (
-	MTDebugLog         MessageType = 11024 // 调试日志
-	MTUserLogin        MessageType = 11025 // 用户登录
-	MTUserLogout       MessageType = 11026 // 用户登出
-	MTCurrentLoginInfo MessageType = 11028 // 当前登录信息
-	MTVoiceToText      MessageType = 11112 // 语音转文本
-	MTMiniProgramCode  MessageType = 11136 // 获取小程序code
-	MTFriendInfo       MessageType = 11029 // 指定好友信息
-	MTFriendList       MessageType = 11030 // 好友列表
-	MTGroupList        MessageType = 11031 // 群列表
-	MTGroupMemberList  MessageType = 11032 // 群成员列表
-	MTSendText         MessageType = 11036 // 发送文本消息
-	MTSendAtText       MessageType = 11037 // 发送@消息
-	MTSendCard         MessageType = 11038 // 发送卡片
-	MTSendURL          MessageType = 11039 // 发送链接
-	MTSendImage        MessageType = 11040 // 发送图片
-	MTSendFile         MessageType = 11041 // 发送文件
-	MTSendVideo        MessageType = 11042 // 发送视频
-	MTSendGif          MessageType = 11043 // 发送GIF
-	MTChatMessage      MessageType = 11046 // 聊天消息
-	MTLogoutCurrent    MessageType = 11104 // 注销当前微信账号
-	MTRefreshQRCode    MessageType = 11087 // 刷新二维码
+	MTDebugLog          MessageType = 11024 // 调试日志
+	MTUserLogin         MessageType = 11025 // 用户登录
+	MTUserLogout        MessageType = 11026 // 用户登出
+	MTCurrentLoginInfo  MessageType = 11028 // 当前登录信息
+	MTInviteGroupMember MessageType = 11069 // 邀请好友进群
+	MTVoiceToText       MessageType = 11112 // 语音转文本
+	MTMiniProgramCode   MessageType = 11136 // 获取小程序code
+	MTFriendInfo        MessageType = 11029 // 指定好友信息
+	MTFriendList        MessageType = 11030 // 好友列表
+	MTGroupList         MessageType = 11031 // 群列表
+	MTGroupMemberList   MessageType = 11032 // 群成员列表
+	MTSendText          MessageType = 11036 // 发送文本消息
+	MTSendAtText        MessageType = 11037 // 发送@消息
+	MTSendCard          MessageType = 11038 // 发送卡片
+	MTSendURL           MessageType = 11039 // 发送链接
+	MTSendImage         MessageType = 11040 // 发送图片
+	MTSendFile          MessageType = 11041 // 发送文件
+	MTSendVideo         MessageType = 11042 // 发送视频
+	MTSendGif           MessageType = 11043 // 发送GIF
+	MTChatMessage       MessageType = 11046 // 聊天消息
+	MTLogoutCurrent     MessageType = 11104 // 注销当前微信账号
+	MTRefreshQRCode     MessageType = 11087 // 刷新二维码
 )
 
 // Message 消息结构

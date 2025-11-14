@@ -278,6 +278,43 @@ func (h *WeChatHandler) SendAtTextMessage(w http.ResponseWriter, r *http.Request
 	SuccessResponse(w, "发送@文本消息成功", nil)
 }
 
+// InviteGroupMember 邀请好友进群
+func (h *WeChatHandler) InviteGroupMember(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		ErrorResponse(w, http.StatusMethodNotAllowed, "仅支持 POST 方法")
+		return
+	}
+
+	var req struct {
+		RoomWxid   string   `json:"room_wxid"`
+		MemberList []string `json:"member_list"`
+		Reason     string   `json:"reason"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "请求体不是有效的JSON")
+		return
+	}
+
+	if req.RoomWxid == "" {
+		ErrorResponse(w, http.StatusBadRequest, "room_wxid不能为空")
+		return
+	}
+	if len(req.MemberList) == 0 {
+		ErrorResponse(w, http.StatusBadRequest, "member_list不能为空")
+		return
+	}
+
+	result, err := h.wechatService.HelperInviteGroupMember(req.RoomWxid, req.MemberList, req.Reason)
+	if err != nil {
+		log.Printf("邀请好友进群失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "邀请好友进群失败: "+err.Error())
+		return
+	}
+
+	SuccessResponse(w, "邀请好友进群成功", result)
+}
+
 // SendImageMessage 发送图片消息
 func (h *WeChatHandler) SendImageMessage(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
