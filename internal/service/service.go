@@ -1,14 +1,16 @@
 package service
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"sync"
 	"time"
 
 	"wxbot-new/internal/loader"
-	"wxbot-new/internal/message"
 )
 
 // WeChatService 微信服务管理器
@@ -27,11 +29,28 @@ type WeChatService struct {
 	responseManager      *ResponseManager
 	cleanupStopChan      chan bool
 	logRecvCallback      int
+	callbackURLs         []string
 	mu                   sync.RWMutex
 }
 
+// callbackHTTPClient 回调请求 HTTP 客户端
+var callbackHTTPClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
+
+// callbackPayload 回调请求体
+type callbackPayload struct {
+	ClientID uint32                 `json:"client_id"`
+	MsgType  int                    `json:"msg_type"`
+	Data     map[string]interface{} `json:"data"`
+}
+
 // NewWeChatService 创建微信服务
-func NewWeChatService(loaderPath, dllPath string, logRecvCallback int) *WeChatService {
+func NewWeChatService(loaderPath, dllPath string, logRecvCallback int, callbackURLs []string) *WeChatService {
+	// 拷贝一份回调地址, 避免外部修改
+	urlsCopy := make([]string, len(callbackURLs))
+	copy(urlsCopy, callbackURLs)
+
 	return &WeChatService{
 		loaderPath:           loaderPath,
 		dllPath:              dllPath,
@@ -41,6 +60,7 @@ func NewWeChatService(loaderPath, dllPath string, logRecvCallback int) *WeChatSe
 		responseManager:      NewResponseManager(10 * time.Second),
 		cleanupStopChan:      make(chan bool),
 		logRecvCallback:      logRecvCallback,
+		callbackURLs:         urlsCopy,
 	}
 }
 
@@ -96,33 +116,12 @@ func (s *WeChatService) registerCallbacks() {
 			log.Printf("收到来自客户端 %d 的消息 - 类型: %d, 数据: %v", clientID, msgType, data)
 		}
 
-		msgTypeEnum := message.MessageType(msgType)
+		// 将消息转发到回调地址(异步)
+		s.sendToCallbacks(clientID, msgType, data)
 
 		// 尝试将响应传递给响应管理器(基于消息类型+客户端ID匹配)
 		if s.responseManager.HandleResponse(msgType, uint32(clientID), data) {
 			log.Printf("响应已发送给等待的请求: msgType=%d, clientID=%d", msgType, clientID)
-		}
-
-		// 处理不同类型的消息
-		switch msgTypeEnum {
-		case message.MTUserLogin:
-			log.Printf("用户登录: %v", data)
-		case message.MTUserLogout:
-			log.Printf("用户登出: %v", data)
-		case message.MTDebugLog:
-			log.Printf("调试日志: %v", data)
-		case message.MTFriendList:
-			log.Printf("收取好友列表数据: %v", data)
-		case message.MTGroupList:
-			log.Printf("收取群列表数据: %v", data)
-		case message.MTGroupMemberList:
-			log.Printf("收取群成员列表数据: %v", data)
-		case message.MTCurrentLoginInfo:
-			log.Printf("收取当前登录信息: data=%v", data)
-		case message.MTChatMessage:
-			log.Printf("收取聊天消息数据: %v", data)
-			// 示例：向文件传输助手发送消息
-			// s.HelperSendText("filehelper", "收到消息")
 		}
 	})
 
@@ -135,6 +134,65 @@ func (s *WeChatService) registerCallbacks() {
 
 		log.Printf("客户端 %d 已断开，当前连接数: %d", clientID, clientCount)
 	})
+
+	// 关闭回调
+	s.loader.AddCloseCallback(func(clientID uintptr) {
+		s.mu.Lock()
+		delete(s.connectedClients, clientID)
+		clientCount := len(s.connectedClients)
+		s.mu.Unlock()
+
+		log.Printf("客户端 %d 已断开，当前连接数: %d", clientID, clientCount)
+	})
+}
+
+// sendToCallbacks 将消息转发到配置的回调地址(异步, 仅限指定消息类型范围)
+func (s *WeChatService) sendToCallbacks(clientID uintptr, msgType int, data map[string]interface{}) {
+	// 仅在配置了回调地址且消息类型在 11046-11053 之间时转发
+	if len(s.callbackURLs) == 0 {
+		return
+	}
+	if msgType < 11046 || msgType > 11053 {
+		return
+	}
+
+	payload := callbackPayload{
+		ClientID: uint32(clientID),
+		MsgType:  msgType,
+		Data:     data,
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("回调数据序列化失败: %v", err)
+		return
+	}
+
+	for _, callbackURL := range s.callbackURLs {
+		urlCopy := callbackURL
+
+		// 异步发送回调请求
+		go func() {
+			req, err := http.NewRequest(http.MethodPost, urlCopy, bytes.NewReader(body))
+			if err != nil {
+				log.Printf("创建回调请求失败: url=%s, err=%v", urlCopy, err)
+				return
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("User-Agent", "wxbot/1.0")
+
+			resp, err := callbackHTTPClient.Do(req)
+			if err != nil {
+				log.Printf("回调请求失败: url=%s, err=%v", urlCopy, err)
+				return
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+				log.Printf("回调请求返回非 2xx 状态码: url=%s, status=%s", urlCopy, resp.Status)
+			}
+		}()
+	}
 }
 
 // Start 启动服务

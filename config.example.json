@@ -7,5 +7,6 @@
       "password": "change_me_123"
     }
   ],
-  "log_recv_callback": 1
+  "log_recv_callback": 1,
+  "callback_urls": []
 }

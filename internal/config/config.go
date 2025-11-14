@@ -19,6 +19,7 @@ type Config struct {
 	Port            int        `json:"port"`                        // 服务端口
 	Auth            []AuthUser `json:"auth,omitempty"`              // HTTP Basic 认证用户列表
 	LogRecvCallback int        `json:"log_recv_callback,omitempty"` // 是否输出接收消息回调日志(1=输出,0=关闭)
+	CallbackURLs    []string   `json:"callback_urls,omitempty"`     // 消息回调地址列表
 }
 
 // Manager 配置管理器
@@ -42,7 +43,8 @@ func getDefaultConfig() *Config {
 		Host:            "0.0.0.0",
 		Port:            5000,
 		Auth:            []AuthUser{}, // 默认空数组,不启用认证
-		LogRecvCallback: 1,            // 默认开启接收消息回调日志
+		LogRecvCallback: 0,            // 默认开启接收消息回调日志
+		CallbackURLs:    []string{},   // 默认无回调地址
 	}
 }
 
@@ -82,11 +84,15 @@ func (m *Manager) Get() *Config {
 	authCopy := make([]AuthUser, len(m.config.Auth))
 	copy(authCopy, m.config.Auth)
 
+	callbackURLsCopy := make([]string, len(m.config.CallbackURLs))
+	copy(callbackURLsCopy, m.config.CallbackURLs)
+
 	return &Config{
 		Host:            m.config.Host,
 		Port:            m.config.Port,
 		Auth:            authCopy,
 		LogRecvCallback: m.config.LogRecvCallback,
+		CallbackURLs:    callbackURLsCopy,
 	}
 }
 
@@ -106,6 +112,10 @@ func (m *Manager) GetValue(key string) (interface{}, error) {
 		return authCopy, nil
 	case "log_recv_callback":
 		return m.config.LogRecvCallback, nil
+	case "callback_urls":
+		callbackURLsCopy := make([]string, len(m.config.CallbackURLs))
+		copy(callbackURLsCopy, m.config.CallbackURLs)
+		return callbackURLsCopy, nil
 	default:
 		return nil, fmt.Errorf("未知的配置项: %s", key)
 	}
@@ -164,6 +174,24 @@ func (m *Manager) UpdateValue(key string, value interface{}) error {
 		default:
 			return fmt.Errorf("log_recv_callback 必须是数字类型")
 		}
+	case "callback_urls":
+		// value 可能是 []interface{}
+		arr, ok := value.([]interface{})
+		if !ok {
+			return fmt.Errorf("callback_urls 必须是数组类型")
+		}
+		urls := make([]string, 0, len(arr))
+		for i, item := range arr {
+			str, ok := item.(string)
+			if !ok {
+				return fmt.Errorf("callback_urls[%d] 必须是字符串类型", i)
+			}
+			if str == "" {
+				continue
+			}
+			urls = append(urls, str)
+		}
+		m.config.CallbackURLs = urls
 	default:
 		return fmt.Errorf("未知的配置项: %s", key)
 	}

@@ -55,7 +55,7 @@ func main() {
 	dllPath := "./NoveHelper.dll"
 
 	// 5. 创建微信服务
-	wechatService := service.NewWeChatService(loaderPath, dllPath, cfg.LogRecvCallback)
+	wechatService := service.NewWeChatService(loaderPath, dllPath, cfg.LogRecvCallback, cfg.CallbackURLs)
 
 	// 6. 将微信服务实例传递给 API Server
 	apiServer.SetWeChatService(wechatService)
