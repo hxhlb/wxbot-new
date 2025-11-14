@@ -4,19 +4,20 @@ package message
 type MessageType int
 
 const (
-	MTDebugLog    MessageType = 11024 // 调试日志
-	MTUserLogin   MessageType = 11025 // 用户登录
-	MTUserLogout  MessageType = 11026 // 用户登出
-	MTFriendList  MessageType = 11030 // 好友列表
-	MTSendText    MessageType = 11036 // 发送文本消息
-	MTSendAtText  MessageType = 11037 // 发送@消息
-	MTSendCard    MessageType = 11038 // 发送卡片
-	MTSendURL     MessageType = 11039 // 发送链接
-	MTSendImage   MessageType = 11040 // 发送图片
-	MTSendFile    MessageType = 11041 // 发送文件
-	MTSendVideo   MessageType = 11042 // 发送视频
-	MTSendGif     MessageType = 11043 // 发送GIF
-	MTChatMessage MessageType = 11046 // 聊天消息
+	MTDebugLog         MessageType = 11024 // 调试日志
+	MTUserLogin        MessageType = 11025 // 用户登录
+	MTUserLogout       MessageType = 11026 // 用户登出
+	MTFriendList       MessageType = 11030 // 好友列表
+	MTSendText         MessageType = 11036 // 发送文本消息
+	MTSendAtText       MessageType = 11037 // 发送@消息
+	MTSendCard         MessageType = 11038 // 发送卡片
+	MTSendURL          MessageType = 11039 // 发送链接
+	MTSendImage        MessageType = 11040 // 发送图片
+	MTSendFile         MessageType = 11041 // 发送文件
+	MTSendVideo        MessageType = 11042 // 发送视频
+	MTSendGif          MessageType = 11043 // 发送GIF
+	MTChatMessage      MessageType = 11046 // 聊天消息
+	MTCurrentLoginInfo MessageType = 11028 // 当前登录信息
 )
 
 // Message 消息结构
