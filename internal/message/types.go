@@ -22,9 +22,8 @@ const (
 
 // Message 消息结构
 type Message struct {
-	Type  MessageType            `json:"type"`
-	Data  map[string]interface{} `json:"data"`
-	Trace string                 `json:"trace,omitempty"` // 追踪ID，用于同步请求响应
+	Type MessageType            `json:"type"`
+	Data map[string]interface{} `json:"data"`
 }
 
 // SendTextData 发送文本消息数据

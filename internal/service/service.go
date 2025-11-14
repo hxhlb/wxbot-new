@@ -94,19 +94,9 @@ func (s *WeChatService) registerCallbacks() {
 
 		msgTypeEnum := message.MessageType(msgType)
 
-		// 从响应数据中提取 trace
-		trace := ""
-		if traceValue, ok := data["trace"]; ok {
-			if traceStr, ok := traceValue.(string); ok {
-				trace = traceStr
-			}
-		}
-
-		// 如果有 trace,尝试将响应传递给响应管理器
-		if trace != "" {
-			if s.responseManager.HandleResponse(trace, data) {
-				log.Printf("响应已发送给等待的请求: 类型=%d, trace=%s", msgType, trace)
-			}
+		// 尝试将响应传递给响应管理器(基于消息类型+客户端ID匹配)
+		if s.responseManager.HandleResponse(msgType, uint32(clientID), data) {
+			log.Printf("响应已发送给等待的请求: msgType=%d, clientID=%d", msgType, clientID)
 		}
 
 		// 处理不同类型的消息
@@ -120,7 +110,7 @@ func (s *WeChatService) registerCallbacks() {
 		case message.MTFriendList:
 			log.Printf("收取好友列表数据: %v", data)
 		case message.MTCurrentLoginInfo:
-			log.Printf("收取当前登录信息: trace=%s, data=%v", trace, data)
+			log.Printf("收取当前登录信息: data=%v", data)
 		case message.MTChatMessage:
 			log.Printf("收取聊天消息数据: %v", data)
 			// 示例：向文件传输助手发送消息

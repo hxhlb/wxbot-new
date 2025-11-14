@@ -27,14 +27,10 @@ func (s *WeChatService) HelperGetFriendList() error {
 
 // HelperGetCurrentLoginInfo 获取当前登录信息(同步方式,带超时)
 func (s *WeChatService) HelperGetCurrentLoginInfo() (*message.CurrentLoginInfoData, error) {
-	// 生成唯一的 trace ID
-	trace := GenerateTraceID()
-
-	// DLL层需要的数据格式(空对象即可)
+	// 构造消息(无需 trace)
 	msg := message.Message{
-		Type:  message.MTCurrentLoginInfo,
-		Data:  map[string]interface{}{},
-		Trace: trace,
+		Type: message.MTCurrentLoginInfo,
+		Data: map[string]interface{}{},
 	}
 
 	data, err := json.Marshal(msg)
@@ -42,40 +38,38 @@ func (s *WeChatService) HelperGetCurrentLoginInfo() (*message.CurrentLoginInfoDa
 		return nil, fmt.Errorf("序列化消息失败: %v", err)
 	}
 
-	// 使用 trace 注册等待响应
-	responseChan := s.responseManager.RegisterRequest(trace, 10*time.Second)
+	// 使用消息类型和客户端ID注册等待响应
+	responseChan := s.responseManager.RegisterRequest(int(message.MTCurrentLoginInfo), s.clientID, 10*time.Second)
 
 	// 发送请求
-	log.Printf("获取当前登录信息请求 [trace=%s]: %s", trace, string(data))
+	log.Printf("获取当前登录信息请求 [msgType=%d, clientID=%d]: %s", message.MTCurrentLoginInfo, s.clientID, string(data))
 	if err := s.SendMessage(string(data)); err != nil {
-		s.responseManager.CancelRequest(trace) // 发送失败时清理注册
+		s.responseManager.CancelRequest(int(message.MTCurrentLoginInfo), s.clientID) // 发送失败时清理注册
 		return nil, fmt.Errorf("发送消息失败: %v", err)
 	}
 
 	// 等待响应
 	respData, err := s.responseManager.WaitForResponse(responseChan, 10*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("等待响应超时 [trace=%s]: %v", trace, err)
+		return nil, fmt.Errorf("等待响应超时: %v", err)
 	}
 
 	// 解析响应数据
 	loginInfo := &message.CurrentLoginInfoData{}
-	if dataMap, ok := respData["data"].(map[string]interface{}); ok {
-		if account, ok := dataMap["account"].(string); ok {
-			loginInfo.Account = account
-		}
-		if avatar, ok := dataMap["avatar"].(string); ok {
-			loginInfo.Avatar = avatar
-		}
-		if nickname, ok := dataMap["nickname"].(string); ok {
-			loginInfo.Nickname = nickname
-		}
-		if wxid, ok := dataMap["wxid"].(string); ok {
-			loginInfo.Wxid = wxid
-		}
+	if account, ok := respData["account"].(string); ok {
+		loginInfo.Account = account
+	}
+	if avatar, ok := respData["avatar"].(string); ok {
+		loginInfo.Avatar = avatar
+	}
+	if nickname, ok := respData["nickname"].(string); ok {
+		loginInfo.Nickname = nickname
+	}
+	if wxid, ok := respData["wxid"].(string); ok {
+		loginInfo.Wxid = wxid
 	}
 
-	log.Printf("获取登录信息成功 [trace=%s]: %+v", trace, loginInfo)
+	log.Printf("获取登录信息成功: %+v", loginInfo)
 	return loginInfo, nil
 }
 
