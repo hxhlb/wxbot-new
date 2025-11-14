@@ -37,7 +37,6 @@ func (s *WeChatService) HelperGetFriendList() ([]*message.FriendInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("等待响应超时: %v", err)
 	}
-
 	// 解析响应数据中的好友数组
 	friends := make([]*message.FriendInfo, 0)
 
@@ -103,14 +102,8 @@ func (s *WeChatService) HelperGetFriendInfo(wxid string) (*message.FriendInfo, e
 	if err != nil {
 		return nil, fmt.Errorf("等待响应超时: %v", err)
 	}
-
-	// data 字段中是好友详细信息
-	raw, ok := respData["data"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("好友信息数据格式不正确: %v", respData)
-	}
-
-	bytes, err := json.Marshal(raw)
+	// respData 即为好友详细信息字段集合
+	bytes, err := json.Marshal(respData)
 	if err != nil {
 		return nil, fmt.Errorf("序列化好友信息失败: %v", err)
 	}

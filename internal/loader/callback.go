@@ -91,10 +91,10 @@ func (m *CallbackManager) onRecv(clientID uintptr, data uintptr, length uint32) 
 		log.Printf("[DEBUG] 接收到的数据 [长度:%d]: %s", len(dataBytes), string(dataBytes))
 	}
 
-	// 解析JSON
+	// 解析JSON（兼容 data 字段为对象或数组的情况）
 	var msg struct {
-		Type int                    `json:"type"`
-		Data map[string]interface{} `json:"data"`
+		Type int             `json:"type"`
+		Data json.RawMessage `json:"data"`
 	}
 
 	if err := json.Unmarshal(dataBytes, &msg); err != nil {
@@ -102,9 +102,34 @@ func (m *CallbackManager) onRecv(clientID uintptr, data uintptr, length uint32) 
 		return 0
 	}
 
+	// 统一转换为 map[string]interface{} 传递给上层：
+	// - 当 data 是对象时，直接映射为 map
+	// - 当 data 是数组时，包装为 {"data": [...]}，方便好友列表等场景使用
+	payload := make(map[string]interface{})
+
+	// 优先尝试解析为对象
+	if len(msg.Data) > 0 && string(msg.Data) != "null" {
+		if err := json.Unmarshal(msg.Data, &payload); err != nil {
+			// 如果不是对象，再尝试解析为数组
+			var list []interface{}
+			if errArr := json.Unmarshal(msg.Data, &list); errArr == nil {
+				payload["data"] = list
+			} else {
+				// 最后兜底为任意类型，放在 value 字段中，避免整个消息丢失
+				var v interface{}
+				if errAny := json.Unmarshal(msg.Data, &v); errAny == nil {
+					payload["value"] = v
+				} else {
+					log.Printf("解析消息 data 字段失败: %v, data=%s", err, string(msg.Data))
+					return 0
+				}
+			}
+		}
+	}
+
 	// 调用回调
 	for _, cb := range m.recvCallbacks {
-		cb(clientID, msg.Type, msg.Data)
+		cb(clientID, msg.Type, payload)
 	}
 
 	return 0

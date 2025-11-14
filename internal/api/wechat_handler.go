@@ -115,12 +115,8 @@ func (h *WeChatHandler) GetFriendList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := map[string]interface{}{
-		"type": 11030,
-		"data": friends,
-	}
-
-	SuccessResponse(w, "获取好友列表成功", resp)
+	// 直接返回好友数组，保持与其他接口一致（data 类型可为任意）
+	SuccessResponse(w, "获取好友列表成功", friends)
 }
 
 // GetFriendInfo 获取指定好友信息
@@ -160,10 +156,6 @@ func (h *WeChatHandler) GetFriendInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := map[string]interface{}{
-		"type": 11029,
-		"data": friend,
-	}
-
-	SuccessResponse(w, "获取好友信息成功", resp)
+	// 直接返回好友对象
+	SuccessResponse(w, "获取好友信息成功", friend)
 }
