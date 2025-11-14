@@ -163,3 +163,49 @@ func (s *WeChatService) HelperGetMiniProgramCode(appID string) (*message.MiniPro
 	log.Printf("获取小程序code成功: %+v", codeData)
 	return codeData, nil
 }
+
+// HelperGetVoiceToText 语音转文本(同步方式,带超时)
+func (s *WeChatService) HelperGetVoiceToText(msgID string) (*message.VoiceToTextData, error) {
+	// 构造消息
+	msg := message.Message{
+		Type: message.MTVoiceToText,
+		Data: map[string]interface{}{
+			"msgid": msgID,
+		},
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("序列化消息失败: %v", err)
+	}
+
+	// 使用消息类型和客户端ID注册等待响应
+	responseChan := s.responseManager.RegisterRequest(int(message.MTVoiceToText), s.clientID, 10*time.Second)
+
+	// 发送请求
+	log.Printf("语音转文本请求 [msgType=%d, clientID=%d]: %s", message.MTVoiceToText, s.clientID, string(data))
+	if err := s.SendMessage(string(data)); err != nil {
+		s.responseManager.CancelRequest(int(message.MTVoiceToText), s.clientID) // 发送失败时清理注册
+		return nil, fmt.Errorf("发送消息失败: %v", err)
+	}
+
+	// 等待响应
+	respData, err := s.responseManager.WaitForResponse(responseChan, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("等待响应超时: %v", err)
+	}
+
+	// 通过 JSON 编解码一次性映射到结构体, 简化字段处理
+	bytes, err := json.Marshal(respData)
+	if err != nil {
+		return nil, fmt.Errorf("序列化语音转文本数据失败: %v", err)
+	}
+
+	result := &message.VoiceToTextData{}
+	if err := json.Unmarshal(bytes, result); err != nil {
+		return nil, fmt.Errorf("解析语音转文本数据失败: %v", err)
+	}
+
+	log.Printf("语音转文本成功: %+v", result)
+	return result, nil
+}

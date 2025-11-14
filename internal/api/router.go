@@ -52,6 +52,8 @@ func (r *Router) RegisterRoutes() http.Handler {
 	r.mux.HandleFunc("/api/wechat/refresh-qrcode", r.wechatHandler.RefreshQRCode)
 	// 获取小程序code
 	r.mux.HandleFunc("/api/wechat/mini-program-code", r.wechatHandler.GetMiniProgramCode)
+	// 语音转文本
+	r.mux.HandleFunc("/api/wechat/voice-to-text", r.wechatHandler.GetVoiceToText)
 	// 注销当前微信账号
 	r.mux.HandleFunc("/api/wechat/logout", r.wechatHandler.LogoutCurrent)
 	// 获取好友列表

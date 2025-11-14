@@ -109,6 +109,24 @@ func (h *WeChatHandler) GetMiniProgramCode(w http.ResponseWriter, r *http.Reques
 	SuccessResponse(w, "获取小程序code成功", result)
 }
 
+// GetVoiceToText 语音转文本
+func (h *WeChatHandler) GetVoiceToText(w http.ResponseWriter, r *http.Request) {
+	msgID := r.URL.Query().Get("msgid")
+	if msgID == "" {
+		ErrorResponse(w, http.StatusBadRequest, "msgid不能为空")
+		return
+	}
+
+	result, err := h.wechatService.HelperGetVoiceToText(msgID)
+	if err != nil {
+		log.Printf("语音转文本失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "语音转文本失败: "+err.Error())
+		return
+	}
+
+	SuccessResponse(w, "语音转文本成功", result)
+}
+
 // GetFriendList 获取好友列表
 func (h *WeChatHandler) GetFriendList(w http.ResponseWriter, r *http.Request) {
 	friends, err := h.wechatService.HelperGetFriendList()

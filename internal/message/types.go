@@ -8,6 +8,7 @@ const (
 	MTUserLogin        MessageType = 11025 // 用户登录
 	MTUserLogout       MessageType = 11026 // 用户登出
 	MTCurrentLoginInfo MessageType = 11028 // 当前登录信息
+	MTVoiceToText      MessageType = 11112 // 语音转文本
 	MTMiniProgramCode  MessageType = 11136 // 获取小程序code
 	MTFriendInfo       MessageType = 11029 // 指定好友信息
 	MTFriendList       MessageType = 11030 // 好友列表
@@ -95,6 +96,17 @@ type MiniProgramCodeData struct {
 	State          string   `json:"state"`
 	BaseResponse   any      `json:"baseResponse"`
 	JSAPIBaseReply any      `json:"jsApiBaseResponse"`
+}
+
+// VoiceToTextData 语音转文本响应数据
+type VoiceToTextData struct {
+	FromWxid string `json:"from_wxid"`
+	MsgID    string `json:"msgid"`
+	RoomWxid string `json:"room_wxid"`
+	Status   int    `json:"status"`
+	Text     string `json:"text"`
+	ToWxid   string `json:"to_wxid"`
+	WxType   int    `json:"wx_type"`
 }
 
 // FriendInfo 好友信息
