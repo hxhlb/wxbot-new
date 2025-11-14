@@ -9,6 +9,7 @@ const (
 	MTUserLogout        MessageType = 11026 // 用户登出
 	MTCurrentLoginInfo  MessageType = 11028 // 当前登录信息
 	MTInviteGroupMember MessageType = 11069 // 邀请好友进群
+	MTModifyGroupName   MessageType = 11072 // 修改群名称
 	MTVoiceToText       MessageType = 11112 // 语音转文本
 	MTMiniProgramCode   MessageType = 11136 // 获取小程序code
 	MTFriendInfo        MessageType = 11029 // 指定好友信息

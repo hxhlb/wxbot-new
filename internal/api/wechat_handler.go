@@ -475,3 +475,40 @@ func (h *WeChatHandler) SendCardMessage(w http.ResponseWriter, r *http.Request) 
 
 	SuccessResponse(w, "发送名片消息成功", nil)
 }
+
+// ModifyGroupName 修改群名称
+func (h *WeChatHandler) ModifyGroupName(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		ErrorResponse(w, http.StatusMethodNotAllowed, "仅支持 POST 方法")
+		return
+	}
+
+	var req struct {
+		RoomWxid string `json:"room_wxid"`
+		Name     string `json:"name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "请求体不是有效的JSON")
+		return
+	}
+
+	if req.RoomWxid == "" {
+		ErrorResponse(w, http.StatusBadRequest, "room_wxid不能为空")
+		return
+	}
+	if req.Name == "" {
+		ErrorResponse(w, http.StatusBadRequest, "name不能为空")
+		return
+	}
+
+	result, err := h.wechatService.HelperModifyGroupName(req.RoomWxid, req.Name)
+	if err != nil {
+		log.Printf("修改群名称失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "修改群名称失败: "+err.Error())
+		return
+	}
+
+	// 直接返回 DLL data 对象，保持结构简单
+	SuccessResponse(w, "修改群名称成功", result)
+}

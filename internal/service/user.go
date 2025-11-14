@@ -246,3 +246,39 @@ func (s *WeChatService) HelperInviteGroupMember(roomWxid string, memberList []st
 	log.Printf("邀请好友进群成功: %+v", respData)
 	return respData, nil
 }
+
+// HelperModifyGroupName 修改群名称(同步方式,带超时)
+func (s *WeChatService) HelperModifyGroupName(roomWxid, name string) (map[string]interface{}, error) {
+	// 构造消息
+	msg := message.Message{
+		Type: message.MTModifyGroupName,
+		Data: map[string]interface{}{
+			"room_wxid": roomWxid,
+			"name":      name,
+		},
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("序列化消息失败: %v", err)
+	}
+
+	// 使用消息类型和客户端ID注册等待响应
+	responseChan := s.responseManager.RegisterRequest(int(message.MTModifyGroupName), s.clientID, 10*time.Second)
+
+	// 发送请求
+	log.Printf("修改群名称请求 [msgType=%d, clientID=%d, roomWxid=%s, name=%s]: %s", message.MTModifyGroupName, s.clientID, roomWxid, name, string(data))
+	if err := s.SendMessage(string(data)); err != nil {
+		s.responseManager.CancelRequest(int(message.MTModifyGroupName), s.clientID) // 发送失败时清理注册
+		return nil, fmt.Errorf("发送消息失败: %v", err)
+	}
+
+	// 等待响应
+	respData, err := s.responseManager.WaitForResponse(responseChan, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("等待响应超时: %v", err)
+	}
+
+	log.Printf("修改群名称响应: %+v", respData)
+	return respData, nil
+}
