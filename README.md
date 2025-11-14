@@ -1,6 +1,6 @@
-# wxbot-new
+# WxBot New
 
-基于 DLL 注入技术的微信机器人服务，提供 HTTP API 接口进行微信自动化操作。   
+基于 DLL 注入技术的微信(**版本 4.1.2.17**)机器人服务，提供 HTTP API 接口进行微信自动化操作。   
 接口文档: [https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5](https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5)
 
 ## 项目特性
