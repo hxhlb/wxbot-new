@@ -136,14 +136,15 @@ func (l *NoveLoader) InjectWeChat(dllPath string) (uint32, error) {
 func (l *NoveLoader) SendWeChatData(clientID uint32, message string) error {
 	messageBytes := append([]byte(message), 0)
 
-	ret, _ := l.callFunc(
+	ret, err := l.callFunc(
 		offsetSendWeChatData,
 		uintptr(clientID),
 		uintptr(unsafe.Pointer(&messageBytes[0])),
 	)
 
 	if ret == 0 {
-		return fmt.Errorf("发送消息失败")
+		return fmt.Errorf("SendWeChatData调用失败: ret=%d, err=%v, clientID=%d, msgLen=%d",
+			ret, err, clientID, len(message))
 	}
 
 	return nil

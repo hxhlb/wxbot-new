@@ -80,10 +80,12 @@ func (s *WeChatService) registerCallbacks() {
 	s.loader.AddConnectCallback(func(clientID uintptr) {
 		s.mu.Lock()
 		s.connectedClients[clientID] = true
+		// 更新为真实的客户端ID
+		s.clientID = uint32(clientID)
 		clientCount := len(s.connectedClients)
 		s.mu.Unlock()
 
-		log.Printf("客户端 %d 已连接，当前连接数: %d", clientID, clientCount)
+		log.Printf("客户端 %d 已连接，当前连接数: %d (已更新 ClientID)", clientID, clientCount)
 	})
 
 	// 接收消息回调
@@ -92,9 +94,19 @@ func (s *WeChatService) registerCallbacks() {
 
 		msgTypeEnum := message.MessageType(msgType)
 
-		// 先尝试将响应传递给响应管理器
-		if s.responseManager.HandleResponse(msgTypeEnum, data) {
-			log.Printf("响应已发送给等待的请求: 类型 %d", msgType)
+		// 从响应数据中提取 trace
+		trace := ""
+		if traceValue, ok := data["trace"]; ok {
+			if traceStr, ok := traceValue.(string); ok {
+				trace = traceStr
+			}
+		}
+
+		// 如果有 trace,尝试将响应传递给响应管理器
+		if trace != "" {
+			if s.responseManager.HandleResponse(trace, data) {
+				log.Printf("响应已发送给等待的请求: 类型=%d, trace=%s", msgType, trace)
+			}
 		}
 
 		// 处理不同类型的消息
@@ -108,7 +120,7 @@ func (s *WeChatService) registerCallbacks() {
 		case message.MTFriendList:
 			log.Printf("收取好友列表数据: %v", data)
 		case message.MTCurrentLoginInfo:
-			log.Printf("收取当前登录信息: %v", data)
+			log.Printf("收取当前登录信息: trace=%s, data=%v", trace, data)
 		case message.MTChatMessage:
 			log.Printf("收取聊天消息数据: %v", data)
 			// 示例：向文件传输助手发送消息
@@ -263,20 +275,49 @@ func (s *WeChatService) Stop() {
 
 // SendMessage 发送消息
 func (s *WeChatService) SendMessage(message string) error {
-	if s.clientID == 0 || s.loader == nil {
-		return fmt.Errorf("服务未连接，无法发送消息")
+	if s.loader == nil {
+		return fmt.Errorf("Loader 未初始化")
 	}
+
+	if s.clientID == 0 {
+		return fmt.Errorf("客户端ID为0，微信可能未成功注入或已断开连接")
+	}
+
+	if !s.isRunning {
+		return fmt.Errorf("微信服务未运行")
+	}
+
+	// 检查连接状态
+	s.mu.RLock()
+	isConnected := s.connectedClients[uintptr(s.clientID)]
+	connectedCount := len(s.connectedClients)
+	s.mu.RUnlock()
+
+	log.Printf("发送消息前检查: ClientID=%d, IsConnected=%v, TotalConnections=%d, IsRunning=%v",
+		s.clientID, isConnected, connectedCount, s.isRunning)
 
 	if err := s.loader.SendWeChatData(s.clientID, message); err != nil {
-		log.Printf("消息发送失败: %v", err)
-		return err
+		log.Printf("消息发送失败 (ClientID: %d): %v", s.clientID, err)
+		return fmt.Errorf("发送消息失败: %v", err)
 	}
 
-	log.Printf("消息发送成功: %s", message)
+	log.Printf("消息发送成功 (ClientID: %d): %s", s.clientID, message)
 	return nil
 }
 
 // IsRunning 检查服务是否运行中
 func (s *WeChatService) IsRunning() bool {
 	return s.isRunning
+}
+
+// GetClientID 获取客户端ID
+func (s *WeChatService) GetClientID() uint32 {
+	return s.clientID
+}
+
+// GetConnectedClientsCount 获取已连接客户端数量
+func (s *WeChatService) GetConnectedClientsCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.connectedClients)
 }

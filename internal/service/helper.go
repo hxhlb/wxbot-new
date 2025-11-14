@@ -27,9 +27,14 @@ func (s *WeChatService) HelperGetFriendList() error {
 
 // HelperGetCurrentLoginInfo 获取当前登录信息(同步方式,带超时)
 func (s *WeChatService) HelperGetCurrentLoginInfo() (*message.CurrentLoginInfoData, error) {
+	// 生成唯一的 trace ID
+	trace := GenerateTraceID()
+
+	// DLL层需要的数据格式(空对象即可)
 	msg := message.Message{
-		Type: message.MTCurrentLoginInfo,
-		Data: make(map[string]interface{}),
+		Type:  message.MTCurrentLoginInfo,
+		Data:  map[string]interface{}{},
+		Trace: trace,
 	}
 
 	data, err := json.Marshal(msg)
@@ -37,19 +42,20 @@ func (s *WeChatService) HelperGetCurrentLoginInfo() (*message.CurrentLoginInfoDa
 		return nil, fmt.Errorf("序列化消息失败: %v", err)
 	}
 
-	// 注册等待响应
-	responseChan := s.responseManager.RegisterRequest(message.MTCurrentLoginInfo, 10*time.Second)
+	// 使用 trace 注册等待响应
+	responseChan := s.responseManager.RegisterRequest(trace, 10*time.Second)
 
 	// 发送请求
-	log.Printf("获取当前登录信息请求: %s", string(data))
+	log.Printf("获取当前登录信息请求 [trace=%s]: %s", trace, string(data))
 	if err := s.SendMessage(string(data)); err != nil {
-		return nil, err
+		s.responseManager.CancelRequest(trace) // 发送失败时清理注册
+		return nil, fmt.Errorf("发送消息失败: %v", err)
 	}
 
 	// 等待响应
 	respData, err := s.responseManager.WaitForResponse(responseChan, 10*time.Second)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("等待响应超时 [trace=%s]: %v", trace, err)
 	}
 
 	// 解析响应数据
@@ -69,6 +75,7 @@ func (s *WeChatService) HelperGetCurrentLoginInfo() (*message.CurrentLoginInfoDa
 		}
 	}
 
+	log.Printf("获取登录信息成功 [trace=%s]: %+v", trace, loginInfo)
 	return loginInfo, nil
 }
 

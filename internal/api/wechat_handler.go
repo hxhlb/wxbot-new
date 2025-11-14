@@ -22,17 +22,27 @@ func NewWeChatHandler(wechatService *service.WeChatService) *WeChatHandler {
 // CheckServiceStatus 检查微信服务状态
 func (h *WeChatHandler) CheckServiceStatus(w http.ResponseWriter, r *http.Request) {
 	status := map[string]interface{}{
-		"running": false,
-		"message": "微信服务未初始化",
+		"running":         false,
+		"message":         "微信服务未初始化",
+		"client_id":       0,
+		"connected_count": 0,
 	}
 
 	if h.wechatService != nil {
 		isRunning := h.wechatService.IsRunning()
+		clientID := h.wechatService.GetClientID()
+		connectedCount := h.wechatService.GetConnectedClientsCount()
+
 		status["running"] = isRunning
-		if isRunning {
-			status["message"] = "微信服务正常运行"
-		} else {
+		status["client_id"] = clientID
+		status["connected_count"] = connectedCount
+
+		if !isRunning {
 			status["message"] = "微信服务已停止"
+		} else if clientID == 0 {
+			status["message"] = "微信服务运行中，但未成功注入或已断开连接"
+		} else {
+			status["message"] = "微信服务正常运行"
 		}
 	}
 
