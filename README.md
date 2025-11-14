@@ -111,30 +111,6 @@ wxbot-new/
 - 定期清理过期请求
 - 基于消息类型 + ClientID 匹配响应
 
-#### 消息发送方法 (message.go)
-```go
-HelperSendText(toWxid, content)                    // 发送文本
-HelperSendAtText(toWxid, content, atList)          // 发送@消息
-HelperSendCard(toWxid, cardWxid)                   // 发送卡片
-HelperSendURL(toWxid, title, desc, url, imageURL)  // 发送链接
-HelperSendImage(toWxid, filePath)                  // 发送图片
-HelperSendFile(toWxid, filePath)                   // 发送文件
-HelperSendVideo(toWxid, filePath)                  // 发送视频
-HelperSendGif(toWxid, filePath)                    // 发送GIF
-```
-
-#### 用户信息获取 (user.go)
-```go
-HelperGetCurrentLoginInfo() // 获取账号信息（同步，10秒超时）
-HelperLogoutCurrent()       // 注销当前微信账号（异步，无返回值）
-HelperRefreshQRCode()       // 刷新二维码（同步，10秒超时）
-```
-
-#### 联系人管理 (contact.go)
-```go
-HelperGetFriendList()             // 获取好友列表（同步，10秒超时）
-HelperGetFriendInfo(wxid string)  // 获取指定好友信息（同步，10秒超时）
-```
 
 ### 4. DLL 加载层 (internal/loader)
 
@@ -148,16 +124,6 @@ HelperGetFriendInfo(wxid string)  // 获取指定好友信息（同步，10秒�
   - 销毁连接
   - 多种注入方式（PID 注入、多开等）
 
-**关键偏移地址**：
-```go
-offsetInitWeChatSocket      = 0xB080
-offsetInjectWeChat          = 0xCC10
-offsetSendWeChatData        = 0xAF90
-offsetDestroyWeChat         = 0xC540
-offsetInjectWeChatPid       = 0xB750
-offsetInjectWeChatMultiOpen = 0xC780
-```
-
 #### 回调系统 (callback.go)
 - **连接回调**：客户端连接时触发
 - **接收消息回调**：收到微信消息时触发
@@ -166,33 +132,6 @@ offsetInjectWeChatMultiOpen = 0xC780
 - 自动解析 JSON 数据
 - 线程安全的回调链管理
 
-### 5. 消息类型定义 (internal/message)
-
-支持的消息类型：
-- `11024`: 调试日志
-- `11025`: 用户登录
-- `11026`: 用户登出
-- `11028`: 当前登录信息
-- `11029`: 指定好友信息
-- `11104`: 注销当前微信账号
-- `11030`: 好友列表
-- `11036`: 发送文本消息
-- `11037`: 发送@消息
-- `11038`: 发送卡片
-- `11039`: 发送链接
-- `11040`: 发送图片
-- `11041`: 发送文件
-- `11042`: 发送视频
-- `11043`: 发送GIF
-- `11046`: 聊天消息
-- `11087`: 刷新二维码
-
-### 6. 共享内存管理 (internal/memory)
-
-- 创建并写入 33 字节共享内存
-- 共享内存名称: `windows_shell_global__`
-- 固定密钥: `3101b223dca7715b0154924f0eeeee20`
-- 使用 Windows API：`CreateFileMappingA`、`MapViewOfFile`
 
 ## 快速开始
 
@@ -438,18 +377,6 @@ A: 可能是微信进程不稳定，检查微信版本兼容性
 **Q: 如何扩展新接口？**
 A: 在 `internal/api/router.go` 中注册新路由，在对应 Handler 中实现逻辑
 
-## 扩展方向
-
-1. ✅ **HTTP API 服务**：已实现 RESTful API
-2. ✅ **异步响应管理**：已实现 ResponseManager
-3. ✅ **配置管理**：已实现动态配置
-4. 🚧 **消息队列**：集成 RabbitMQ/Kafka 进行消息分发
-5. 🚧 **插件系统**：动态加载消息处理插件
-6. 🚧 **多账号支持**：管理多个微信实例
-7. 🚧 **数据持久化**：存储聊天记录到数据库
-8. 🚧 **WebSocket 支持**：实时推送消息事件
-9. 🚧 **Docker 部署**：容器化部署（需要 Windows 容器）
-
-## 许可证
+## 声明
 
 本项目仅供学习交流使用，请勿用于非法用途。使用本项目产生的任何法律责任由使用者自行承担。
