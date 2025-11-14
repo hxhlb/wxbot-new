@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 
@@ -22,11 +21,6 @@ func NewWeChatHandler(wechatService *service.WeChatService) *WeChatHandler {
 
 // LogoutCurrent 注销当前微信账号
 func (h *WeChatHandler) LogoutCurrent(w http.ResponseWriter, r *http.Request) {
-	if h.wechatService == nil || !h.wechatService.IsRunning() {
-		ErrorResponse(w, http.StatusServiceUnavailable, "微信服务未运行")
-		return
-	}
-
 	if err := h.wechatService.HelperLogoutCurrent(); err != nil {
 		log.Printf("注销当前微信账号失败: %v", err)
 		ErrorResponse(w, http.StatusInternalServerError, "注销当前微信账号失败: "+err.Error())
@@ -69,11 +63,6 @@ func (h *WeChatHandler) CheckServiceStatus(w http.ResponseWriter, r *http.Reques
 
 // GetCurrentLoginInfo 获取当前登录信息
 func (h *WeChatHandler) GetCurrentLoginInfo(w http.ResponseWriter, r *http.Request) {
-	if h.wechatService == nil || !h.wechatService.IsRunning() {
-		ErrorResponse(w, http.StatusServiceUnavailable, "微信服务未运行")
-		return
-	}
-
 	loginInfo, err := h.wechatService.HelperGetCurrentLoginInfo()
 	if err != nil {
 		log.Printf("获取登录信息失败: %v", err)
@@ -86,11 +75,6 @@ func (h *WeChatHandler) GetCurrentLoginInfo(w http.ResponseWriter, r *http.Reque
 
 // RefreshQRCode 刷新二维码
 func (h *WeChatHandler) RefreshQRCode(w http.ResponseWriter, r *http.Request) {
-	if h.wechatService == nil || !h.wechatService.IsRunning() {
-		ErrorResponse(w, http.StatusServiceUnavailable, "微信服务未运行")
-		return
-	}
-
 	qrData, err := h.wechatService.HelperRefreshQRCode()
 	if err != nil {
 		log.Printf("刷新二维码失败: %v", err)
@@ -103,11 +87,6 @@ func (h *WeChatHandler) RefreshQRCode(w http.ResponseWriter, r *http.Request) {
 
 // GetFriendList 获取好友列表
 func (h *WeChatHandler) GetFriendList(w http.ResponseWriter, r *http.Request) {
-	if h.wechatService == nil || !h.wechatService.IsRunning() {
-		ErrorResponse(w, http.StatusServiceUnavailable, "微信服务未运行")
-		return
-	}
-
 	friends, err := h.wechatService.HelperGetFriendList()
 	if err != nil {
 		log.Printf("获取好友列表失败: %v", err)
@@ -121,35 +100,13 @@ func (h *WeChatHandler) GetFriendList(w http.ResponseWriter, r *http.Request) {
 
 // GetFriendInfo 获取指定好友信息
 func (h *WeChatHandler) GetFriendInfo(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		ErrorResponse(w, http.StatusMethodNotAllowed, "仅支持 POST")
-		return
-	}
-
-	if h.wechatService == nil || !h.wechatService.IsRunning() {
-		ErrorResponse(w, http.StatusServiceUnavailable, "微信服务未运行")
-		return
-	}
-
-	var req struct {
-		Type int `json:"type"`
-		Data struct {
-			Wxid string `json:"wxid"`
-		} `json:"data"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("解析请求体失败: %v", err)
-		ErrorResponse(w, http.StatusBadRequest, "请求体格式错误")
-		return
-	}
-
-	if req.Data.Wxid == "" {
+	wxid := r.URL.Query().Get("wxid")
+	if wxid == "" {
 		ErrorResponse(w, http.StatusBadRequest, "wxid不能为空")
 		return
 	}
 
-	friend, err := h.wechatService.HelperGetFriendInfo(req.Data.Wxid)
+	friend, err := h.wechatService.HelperGetFriendInfo(wxid)
 	if err != nil {
 		log.Printf("获取好友信息失败: %v", err)
 		ErrorResponse(w, http.StatusInternalServerError, "获取好友信息失败: "+err.Error())

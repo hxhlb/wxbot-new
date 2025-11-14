@@ -191,3 +191,29 @@ func (rw *responseWrapper) WriteHeader(code int) {
 	rw.statusCode = code
 	rw.ResponseWriter.WriteHeader(code)
 }
+
+// WeChatServiceMiddleware 微信服务状态检查中间件
+// 针对微信相关接口统一检查服务是否已运行
+func WeChatServiceMiddleware(wechatHandler *WeChatHandler) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			path := r.URL.Path
+
+			// 仅对微信相关接口做检查:
+			// - /api/wechat/* (但排除 /api/wechat/status)
+			needCheck := false
+			if strings.HasPrefix(path, "/api/wechat/") && path != "/api/wechat/status" {
+				needCheck = true
+			}
+
+			if needCheck {
+				if wechatHandler == nil || wechatHandler.wechatService == nil || !wechatHandler.wechatService.IsRunning() {
+					ErrorResponse(w, http.StatusServiceUnavailable, "微信服务未运行")
+					return
+				}
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}

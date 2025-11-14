@@ -47,8 +47,6 @@ func (r *Router) RegisterRoutes() http.Handler {
 	r.mux.HandleFunc("/api/wechat/status", r.wechatHandler.CheckServiceStatus)
 	// 获取当前登录信息
 	r.mux.HandleFunc("/api/wechat/login-info", r.wechatHandler.GetCurrentLoginInfo)
-	// 获取当前登录信息(别名)
-	r.mux.HandleFunc("/api/user-info", r.wechatHandler.GetCurrentLoginInfo)
 	// 刷新二维码
 	r.mux.HandleFunc("/api/wechat/refresh-qrcode", r.wechatHandler.RefreshQRCode)
 	// 注销当前微信账号
@@ -60,11 +58,12 @@ func (r *Router) RegisterRoutes() http.Handler {
 
 	// 应用中间件链
 	handler := Chain(
-		RecoveryMiddleware(),                 // 最外层: 捕获 panic
-		LoggingMiddleware(),                  // 日志记录
-		CORSMiddleware(),                     // CORS 支持
-		BasicAuthMiddleware(r.configManager), // HTTP Basic 认证
-		ContentTypeMiddleware(),              // 内容类型检查
+		RecoveryMiddleware(),                     // 最外层: 捕获 panic
+		LoggingMiddleware(),                      // 日志记录
+		CORSMiddleware(),                         // CORS 支持
+		BasicAuthMiddleware(r.configManager),     // HTTP Basic 认证
+		WeChatServiceMiddleware(r.wechatHandler), // 微信服务状态检查
+		ContentTypeMiddleware(),                  // 内容类型检查
 	)(r.mux)
 
 	return handler
