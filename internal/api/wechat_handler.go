@@ -146,3 +146,21 @@ func (h *WeChatHandler) GetGroupList(w http.ResponseWriter, r *http.Request) {
 
 	SuccessResponse(w, "获取群列表成功", groups)
 }
+
+// GetGroupMemberList 获取群成员列表
+func (h *WeChatHandler) GetGroupMemberList(w http.ResponseWriter, r *http.Request) {
+	roomWxid := r.URL.Query().Get("room_wxid")
+	if roomWxid == "" {
+		ErrorResponse(w, http.StatusBadRequest, "room_wxid不能为空")
+		return
+	}
+
+	result, err := h.wechatService.HelperGetGroupMemberList(roomWxid)
+	if err != nil {
+		log.Printf("获取群成员列表失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "获取群成员列表失败: "+err.Error())
+		return
+	}
+
+	SuccessResponse(w, "获取群成员列表成功", result)
+}

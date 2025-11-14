@@ -11,6 +11,7 @@ const (
 	MTFriendInfo       MessageType = 11029 // 指定好友信息
 	MTFriendList       MessageType = 11030 // 好友列表
 	MTGroupList        MessageType = 11031 // 群列表
+	MTGroupMemberList  MessageType = 11032 // 群成员列表
 	MTSendText         MessageType = 11036 // 发送文本消息
 	MTSendAtText       MessageType = 11037 // 发送@消息
 	MTSendCard         MessageType = 11038 // 发送卡片
@@ -101,4 +102,26 @@ type GroupInfo struct {
 	TotalMember int      `json:"total_member"`
 	Wxid        string   `json:"wxid"`
 	MemberList  []string `json:"member_list,omitempty"`
+}
+
+// GroupMemberInfo 群成员信息
+type GroupMemberInfo struct {
+	Account     string `json:"account"`
+	Avatar      string `json:"avatar"`
+	City        string `json:"city"`
+	Country     string `json:"country"`
+	DisplayName string `json:"display_name"` // 群内昵称
+	Nickname    string `json:"nickname"`
+	Province    string `json:"province"`
+	Remark      string `json:"remark"`
+	Sex         int    `json:"sex"`
+	Wxid        string `json:"wxid"`
+}
+
+// GroupMemberListData 群成员列表响应数据
+type GroupMemberListData struct {
+	Extend     string            `json:"extend"`
+	GroupWxid  string            `json:"group_wxid"`
+	MemberList []GroupMemberInfo `json:"member_list"`
+	Total      int               `json:"total"`
 }

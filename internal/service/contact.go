@@ -136,6 +136,52 @@ func (s *WeChatService) HelperGetGroupList(detail int) ([]*message.GroupInfo, er
 	return groups, nil
 }
 
+// HelperGetGroupMemberList 获取群成员列表（同步方式, 带超时）
+func (s *WeChatService) HelperGetGroupMemberList(roomWxid string) (*message.GroupMemberListData, error) {
+	// 构造消息
+	msg := message.Message{
+		Type: message.MTGroupMemberList,
+		Data: map[string]interface{}{
+			"room_wxid": roomWxid,
+		},
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("序列化消息失败: %v", err)
+	}
+
+	// 使用消息类型和客户端ID注册等待响应
+	responseChan := s.responseManager.RegisterRequest(int(message.MTGroupMemberList), s.clientID, 10*time.Second)
+
+	// 发送请求
+	log.Printf("获取群成员列表请求 [msgType=%d, clientID=%d, roomWxid=%s]: %s", message.MTGroupMemberList, s.clientID, roomWxid, string(data))
+	if err := s.SendMessage(string(data)); err != nil {
+		s.responseManager.CancelRequest(int(message.MTGroupMemberList), s.clientID)
+		return nil, fmt.Errorf("发送消息失败: %v", err)
+	}
+
+	// 等待响应
+	respData, err := s.responseManager.WaitForResponse(responseChan, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("等待响应超时: %v", err)
+	}
+
+	// respData 为包含 extend/group_wxid/member_list/total 的对象
+	bytes, err := json.Marshal(respData)
+	if err != nil {
+		return nil, fmt.Errorf("序列化群成员列表数据失败: %v", err)
+	}
+
+	result := &message.GroupMemberListData{}
+	if err := json.Unmarshal(bytes, result); err != nil {
+		return nil, fmt.Errorf("解析群成员列表数据失败: %v", err)
+	}
+
+	log.Printf("获取群成员列表成功, group_wxid=%s, total=%d", result.GroupWxid, result.Total)
+	return result, nil
+}
+
 // HelperGetFriendInfo 获取指定好友信息（同步方式, 带超时）
 func (s *WeChatService) HelperGetFriendInfo(wxid string) (*message.FriendInfo, error) {
 	// 构造消息

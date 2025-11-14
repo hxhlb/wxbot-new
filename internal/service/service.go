@@ -111,6 +111,8 @@ func (s *WeChatService) registerCallbacks() {
 			log.Printf("收取好友列表数据: %v", data)
 		case message.MTGroupList:
 			log.Printf("收取群列表数据: %v", data)
+		case message.MTGroupMemberList:
+			log.Printf("收取群成员列表数据: %v", data)
 		case message.MTCurrentLoginInfo:
 			log.Printf("收取当前登录信息: data=%v", data)
 		case message.MTChatMessage:
