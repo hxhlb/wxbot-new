@@ -23,8 +23,8 @@ func main() {
 	}
 
 	logBothln("====== WxBot 服务启动 By: Ripper ======")
-	logBothln("====== 版本: v0.0.1 ======")
-	logBothln("====== 基于微信版本 v4.1.2.17 ======")
+	logBothln("====== 版本: v0.0.2 ======\n")
+	logBothln("====== 基于微信版本 v4.1.2.17 ======\n")
 
 	// 1. 加载配置
 	configManager := config.NewManager("./config.json")
@@ -44,8 +44,8 @@ func main() {
 	}
 	defer memManager.Close()
 
-	logBothln("共享内存创建成功")
-	logBothln("等待拉起微信客户端...")
+	logBothln("\n共享内存创建成功\n")
+	logBothln("\n等待拉起微信客户端...\n")
 
 	// 等待3秒
 	time.Sleep(3 * time.Second)
@@ -86,7 +86,7 @@ func main() {
 	apiServer.Stop()
 	wechatService.Stop()
 
-	logBothln("====== WxBot 服务已停止 ======")
+	logBothln("\n\n====== WxBot 服务已停止 ======")
 }
 
 // logBothln 在日志文件和控制台同时输出一行日志
