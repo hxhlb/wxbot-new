@@ -51,6 +51,8 @@ func (r *Router) RegisterRoutes() http.Handler {
 	r.mux.HandleFunc("/api/user-info", r.wechatHandler.GetCurrentLoginInfo)
 	// 刷新二维码
 	r.mux.HandleFunc("/api/wechat/refresh-qrcode", r.wechatHandler.RefreshQRCode)
+	// 注销当前微信账号
+	r.mux.HandleFunc("/api/wechat/logout", r.wechatHandler.LogoutCurrent)
 
 	// 应用中间件链
 	handler := Chain(

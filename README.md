@@ -124,8 +124,9 @@ HelperSendGif(toWxid, filePath)                    // 发送GIF
 
 #### 用户信息获取 (user.go)
 ```go
-HelperGetCurrentLoginInfo()  // 获取账号信息（同步，10秒超时）
-HelperRefreshQRCode()        // 刷新二维码（同步，10秒超时）
+HelperGetCurrentLoginInfo() // 获取账号信息（同步，10秒超时）
+HelperLogoutCurrent()       // 注销当前微信账号（异步，无返回值）
+HelperRefreshQRCode()       // 刷新二维码（同步，10秒超时）
 ```
 
 #### 联系人管理 (contact.go)
@@ -170,6 +171,7 @@ offsetInjectWeChatMultiOpen = 0xC780
 - `11025`: 用户登录
 - `11026`: 用户登出
 - `11028`: 当前登录信息
+- `11104`: 注销当前微信账号
 - `11030`: 好友列表
 - `11036`: 发送文本消息
 - `11037`: 发送@消息
@@ -448,4 +450,3 @@ A: 在 `internal/api/router.go` 中注册新路由，在对应 Handler 中实现
 ## 许可证
 
 本项目仅供学习交流使用，请勿用于非法用途。使用本项目产生的任何法律责任由使用者自行承担。
-

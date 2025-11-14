@@ -19,6 +19,23 @@ func NewWeChatHandler(wechatService *service.WeChatService) *WeChatHandler {
 	}
 }
 
+// LogoutCurrent 注销当前微信账号
+func (h *WeChatHandler) LogoutCurrent(w http.ResponseWriter, r *http.Request) {
+	if h.wechatService == nil || !h.wechatService.IsRunning() {
+		ErrorResponse(w, http.StatusServiceUnavailable, "微信服务未运行")
+		return
+	}
+
+	if err := h.wechatService.HelperLogoutCurrent(); err != nil {
+		log.Printf("注销当前微信账号失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "注销当前微信账号失败: "+err.Error())
+		return
+	}
+
+	// 无需返回业务数据,仅返回统一成功响应
+	SuccessResponse(w, "注销请求已发送", nil)
+}
+
 // CheckServiceStatus 检查微信服务状态
 func (h *WeChatHandler) CheckServiceStatus(w http.ResponseWriter, r *http.Request) {
 	status := map[string]interface{}{

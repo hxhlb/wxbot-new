@@ -57,6 +57,27 @@ func (s *WeChatService) HelperGetCurrentLoginInfo() (*message.CurrentLoginInfoDa
 	return loginInfo, nil
 }
 
+// HelperLogoutCurrent 注销当前微信账号(异步, 无返回值)
+func (s *WeChatService) HelperLogoutCurrent() error {
+	// 构造消息(无需 trace 与响应)
+	msg := message.Message{
+		Type: message.MTLogoutCurrent,
+		Data: map[string]interface{}{},
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("序列化消息失败: %v", err)
+	}
+
+	log.Printf("注销当前微信账号请求 [msgType=%d, clientID=%d]: %s", message.MTLogoutCurrent, s.clientID, string(data))
+	if err := s.SendMessage(string(data)); err != nil {
+		return fmt.Errorf("发送消息失败: %v", err)
+	}
+
+	return nil
+}
+
 // HelperRefreshQRCode 刷新二维码(同步方式,带超时)
 func (s *WeChatService) HelperRefreshQRCode() (*message.RefreshQRCodeData, error) {
 	// 构造消息
