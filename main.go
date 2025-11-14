@@ -23,6 +23,7 @@ func main() {
 	}
 
 	logBothln("====== WxBot 服务启动 By: Ripper ======")
+	logBothln("====== 版本: v0.0.1 ======")
 	logBothln("====== 基于微信版本 v4.1.2.17 ======")
 
 	// 1. 加载配置
@@ -44,7 +45,7 @@ func main() {
 	defer memManager.Close()
 
 	logBothln("共享内存创建成功")
-	logBothln("等待拉起微信客户端")
+	logBothln("等待拉起微信客户端...")
 
 	// 等待3秒
 	time.Sleep(3 * time.Second)
