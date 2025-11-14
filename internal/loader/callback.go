@@ -1,0 +1,148 @@
+package loader
+
+import (
+	"encoding/json"
+	"log"
+	"sync"
+	"unsafe"
+
+	"golang.org/x/sys/windows"
+)
+
+// CallbackFunc 回调函数类型
+type ConnectCallback func(clientID uintptr)
+type RecvCallback func(clientID uintptr, msgType int, data map[string]interface{})
+type CloseCallback func(clientID uintptr)
+
+// CallbackManager 回调管理器
+type CallbackManager struct {
+	connectCallbacks []ConnectCallback
+	recvCallbacks    []RecvCallback
+	closeCallbacks   []CloseCallback
+	mu               sync.RWMutex
+	debugMode        bool // 调试模式，控制是否打印原始数据
+}
+
+// NewCallbackManager 创建回调管理器
+func NewCallbackManager() *CallbackManager {
+	return &CallbackManager{
+		connectCallbacks: make([]ConnectCallback, 0),
+		recvCallbacks:    make([]RecvCallback, 0),
+		closeCallbacks:   make([]CloseCallback, 0),
+		debugMode:        false, // 默认关闭调试模式
+	}
+}
+
+// SetDebugMode 设置调试模式
+func (m *CallbackManager) SetDebugMode(enabled bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.debugMode = enabled
+}
+
+// AddConnectCallback 添加连接回调
+func (m *CallbackManager) AddConnectCallback(cb ConnectCallback) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.connectCallbacks = append(m.connectCallbacks, cb)
+}
+
+// AddRecvCallback 添加接收消息回调
+func (m *CallbackManager) AddRecvCallback(cb RecvCallback) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.recvCallbacks = append(m.recvCallbacks, cb)
+}
+
+// AddCloseCallback 添加关闭回调
+func (m *CallbackManager) AddCloseCallback(cb CloseCallback) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.closeCallbacks = append(m.closeCallbacks, cb)
+}
+
+// onConnect 连接回调处理
+func (m *CallbackManager) onConnect(clientID uintptr) uintptr {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, cb := range m.connectCallbacks {
+		cb(clientID)
+	}
+	return 0
+}
+
+// onRecv 接收消息回调处理
+func (m *CallbackManager) onRecv(clientID uintptr, data uintptr, length uint32) uintptr {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// 从指针读取数据
+	dataBytes := make([]byte, length)
+	for i := uint32(0); i < length; i++ {
+		dataBytes[i] = *(*byte)(unsafe.Pointer(data + uintptr(i)))
+	}
+
+	// 移除尾部的null字符（C字符串终止符）
+	dataBytes = trimNullBytes(dataBytes)
+
+	// 调试模式下打印接收到的原始数据
+	if m.debugMode {
+		log.Printf("[DEBUG] 接收到的数据 [长度:%d]: %s", len(dataBytes), string(dataBytes))
+	}
+
+	// 解析JSON
+	var msg struct {
+		Type int                    `json:"type"`
+		Data map[string]interface{} `json:"data"`
+	}
+
+	if err := json.Unmarshal(dataBytes, &msg); err != nil {
+		log.Printf("解析消息失败: %v, 原始数据: %s", err, string(dataBytes))
+		return 0
+	}
+
+	// 调用回调
+	for _, cb := range m.recvCallbacks {
+		cb(clientID, msg.Type, msg.Data)
+	}
+
+	return 0
+}
+
+// trimNullBytes 移除字节数组尾部的null字符
+func trimNullBytes(b []byte) []byte {
+	// 找到第一个null字符的位置
+	for i, v := range b {
+		if v == 0 {
+			return b[:i]
+		}
+	}
+	return b
+}
+
+// onClose 关闭回调处理
+func (m *CallbackManager) onClose(clientID uintptr) uintptr {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, cb := range m.closeCallbacks {
+		cb(clientID)
+	}
+	return 0
+}
+
+// GetConnectCallbackPtr 获取连接回调函数指针
+func (m *CallbackManager) GetConnectCallbackPtr() uintptr {
+	return windows.NewCallback(m.onConnect)
+}
+
+// GetRecvCallbackPtr 获取接收消息回调函数指针
+func (m *CallbackManager) GetRecvCallbackPtr() uintptr {
+	return windows.NewCallback(m.onRecv)
+}
+
+// GetCloseCallbackPtr 获取关闭回调函数指针
+func (m *CallbackManager) GetCloseCallbackPtr() uintptr {
+	return windows.NewCallback(m.onClose)
+}
