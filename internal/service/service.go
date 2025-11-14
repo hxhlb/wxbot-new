@@ -26,11 +26,12 @@ type WeChatService struct {
 	connectedClients     map[uintptr]bool
 	responseManager      *ResponseManager
 	cleanupStopChan      chan bool
+	logRecvCallback      int
 	mu                   sync.RWMutex
 }
 
 // NewWeChatService 创建微信服务
-func NewWeChatService(loaderPath, dllPath string) *WeChatService {
+func NewWeChatService(loaderPath, dllPath string, logRecvCallback int) *WeChatService {
 	return &WeChatService{
 		loaderPath:           loaderPath,
 		dllPath:              dllPath,
@@ -39,6 +40,7 @@ func NewWeChatService(loaderPath, dllPath string) *WeChatService {
 		connectedClients:     make(map[uintptr]bool),
 		responseManager:      NewResponseManager(10 * time.Second),
 		cleanupStopChan:      make(chan bool),
+		logRecvCallback:      logRecvCallback,
 	}
 }
 
@@ -90,7 +92,9 @@ func (s *WeChatService) registerCallbacks() {
 
 	// 接收消息回调
 	s.loader.AddRecvCallback(func(clientID uintptr, msgType int, data map[string]interface{}) {
-		log.Printf("收到来自客户端 %d 的消息 - 类型: %d, 数据: %v", clientID, msgType, data)
+		if s.logRecvCallback == 1 {
+			log.Printf("收到来自客户端 %d 的消息 - 类型: %d, 数据: %v", clientID, msgType, data)
+		}
 
 		msgTypeEnum := message.MessageType(msgType)
 

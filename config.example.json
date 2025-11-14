@@ -6,5 +6,6 @@
       "username": "admin",
       "password": "change_me_123"
     }
-  ]
+  ],
+  "log_recv_callback": 1
 }

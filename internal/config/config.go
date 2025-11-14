@@ -15,9 +15,10 @@ type AuthUser struct {
 
 // Config 配置结构
 type Config struct {
-	Host string     `json:"host"`           // 服务地址
-	Port int        `json:"port"`           // 服务端口
-	Auth []AuthUser `json:"auth,omitempty"` // HTTP Basic 认证用户列表
+	Host            string     `json:"host"`                        // 服务地址
+	Port            int        `json:"port"`                        // 服务端口
+	Auth            []AuthUser `json:"auth,omitempty"`              // HTTP Basic 认证用户列表
+	LogRecvCallback int        `json:"log_recv_callback,omitempty"` // 是否输出接收消息回调日志(1=输出,0=关闭)
 }
 
 // Manager 配置管理器
@@ -38,9 +39,10 @@ func NewManager(filePath string) *Manager {
 // getDefaultConfig 获取默认配置
 func getDefaultConfig() *Config {
 	return &Config{
-		Host: "0.0.0.0",
-		Port: 5000,
-		Auth: []AuthUser{}, // 默认空数组,不启用认证
+		Host:            "0.0.0.0",
+		Port:            5000,
+		Auth:            []AuthUser{}, // 默认空数组,不启用认证
+		LogRecvCallback: 1,            // 默认开启接收消息回调日志
 	}
 }
 
@@ -61,13 +63,13 @@ func (m *Manager) Load() error {
 		return fmt.Errorf("读取配置文件失败: %w", err)
 	}
 
-	// 解析 JSON
-	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	// 使用默认配置作为基础, 解析 JSON 覆盖已有字段
+	cfg := getDefaultConfig()
+	if err := json.Unmarshal(data, cfg); err != nil {
 		return fmt.Errorf("解析配置文件失败: %w", err)
 	}
 
-	m.config = &cfg
+	m.config = cfg
 	return nil
 }
 
@@ -81,9 +83,10 @@ func (m *Manager) Get() *Config {
 	copy(authCopy, m.config.Auth)
 
 	return &Config{
-		Host: m.config.Host,
-		Port: m.config.Port,
-		Auth: authCopy,
+		Host:            m.config.Host,
+		Port:            m.config.Port,
+		Auth:            authCopy,
+		LogRecvCallback: m.config.LogRecvCallback,
 	}
 }
 
@@ -101,6 +104,8 @@ func (m *Manager) GetValue(key string) (interface{}, error) {
 		authCopy := make([]AuthUser, len(m.config.Auth))
 		copy(authCopy, m.config.Auth)
 		return authCopy, nil
+	case "log_recv_callback":
+		return m.config.LogRecvCallback, nil
 	default:
 		return nil, fmt.Errorf("未知的配置项: %s", key)
 	}
@@ -149,6 +154,16 @@ func (m *Manager) UpdateValue(key string, value interface{}) error {
 			return err
 		}
 		m.config.Auth = authUsers
+	case "log_recv_callback":
+		// 支持 int 和 float64 (JSON 数字默认是 float64)
+		switch v := value.(type) {
+		case int:
+			m.config.LogRecvCallback = v
+		case float64:
+			m.config.LogRecvCallback = int(v)
+		default:
+			return fmt.Errorf("log_recv_callback 必须是数字类型")
+		}
 	default:
 		return fmt.Errorf("未知的配置项: %s", key)
 	}
@@ -231,6 +246,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.Port <= 0 || cfg.Port > 65535 {
 		return fmt.Errorf("port 必须在 1-65535 之间")
+	}
+	if cfg.LogRecvCallback != 0 && cfg.LogRecvCallback != 1 {
+		return fmt.Errorf("log_recv_callback 必须是 0 或 1")
 	}
 	return nil
 }
