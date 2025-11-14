@@ -7,10 +7,17 @@ import (
 	"sync"
 )
 
+// AuthUser 认证用户
+type AuthUser struct {
+	Username string `json:"username"` // 用户名
+	Password string `json:"password"` // 密码
+}
+
 // Config 配置结构
 type Config struct {
-	Host string `json:"host"` // 服务地址
-	Port int    `json:"port"` // 服务端口
+	Host string     `json:"host"`           // 服务地址
+	Port int        `json:"port"`           // 服务端口
+	Auth []AuthUser `json:"auth,omitempty"` // HTTP Basic 认证用户列表
 }
 
 // Manager 配置管理器
@@ -33,6 +40,7 @@ func getDefaultConfig() *Config {
 	return &Config{
 		Host: "0.0.0.0",
 		Port: 5000,
+		Auth: []AuthUser{}, // 默认空数组,不启用认证
 	}
 }
 
@@ -69,9 +77,13 @@ func (m *Manager) Get() *Config {
 	defer m.mu.RUnlock()
 
 	// 返回副本避免外部修改
+	authCopy := make([]AuthUser, len(m.config.Auth))
+	copy(authCopy, m.config.Auth)
+
 	return &Config{
 		Host: m.config.Host,
 		Port: m.config.Port,
+		Auth: authCopy,
 	}
 }
 
@@ -85,6 +97,10 @@ func (m *Manager) GetValue(key string) (interface{}, error) {
 		return m.config.Host, nil
 	case "port":
 		return m.config.Port, nil
+	case "auth":
+		authCopy := make([]AuthUser, len(m.config.Auth))
+		copy(authCopy, m.config.Auth)
+		return authCopy, nil
 	default:
 		return nil, fmt.Errorf("未知的配置项: %s", key)
 	}
@@ -126,6 +142,13 @@ func (m *Manager) UpdateValue(key string, value interface{}) error {
 		default:
 			return fmt.Errorf("port 必须是数字类型")
 		}
+	case "auth":
+		// 解析 auth 数组
+		authUsers, err := parseAuthUsers(value)
+		if err != nil {
+			return err
+		}
+		m.config.Auth = authUsers
 	default:
 		return fmt.Errorf("未知的配置项: %s", key)
 	}
@@ -136,6 +159,40 @@ func (m *Manager) UpdateValue(key string, value interface{}) error {
 	}
 
 	return m.saveUnsafe()
+}
+
+// parseAuthUsers 解析认证用户列表
+func parseAuthUsers(value interface{}) ([]AuthUser, error) {
+	// value 可能是 []interface{} (从 JSON 解析来的)
+	arr, ok := value.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("auth 必须是数组类型")
+	}
+
+	users := make([]AuthUser, 0, len(arr))
+	for i, item := range arr {
+		userMap, ok := item.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("auth[%d] 必须是对象类型", i)
+		}
+
+		username, ok := userMap["username"].(string)
+		if !ok || username == "" {
+			return nil, fmt.Errorf("auth[%d].username 必须是非空字符串", i)
+		}
+
+		password, ok := userMap["password"].(string)
+		if !ok || password == "" {
+			return nil, fmt.Errorf("auth[%d].password 必须是非空字符串", i)
+		}
+
+		users = append(users, AuthUser{
+			Username: username,
+			Password: password,
+		})
+	}
+
+	return users, nil
 }
 
 // Delete 删除配置文件(恢复默认值)

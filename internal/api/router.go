@@ -10,6 +10,7 @@ import (
 type Router struct {
 	mux           *http.ServeMux
 	configHandler *ConfigHandler
+	configManager *config.Manager
 }
 
 // NewRouter 创建路由管理器
@@ -17,6 +18,7 @@ func NewRouter(configManager *config.Manager) *Router {
 	return &Router{
 		mux:           http.NewServeMux(),
 		configHandler: NewConfigHandler(configManager),
+		configManager: configManager,
 	}
 }
 
@@ -34,10 +36,11 @@ func (r *Router) RegisterRoutes() http.Handler {
 
 	// 应用中间件链
 	handler := Chain(
-		RecoveryMiddleware(),    // 最外层: 捕获 panic
-		LoggingMiddleware(),     // 日志记录
-		CORSMiddleware(),        // CORS 支持
-		ContentTypeMiddleware(), // 内容类型检查
+		RecoveryMiddleware(),                 // 最外层: 捕获 panic
+		LoggingMiddleware(),                  // 日志记录
+		CORSMiddleware(),                     // CORS 支持
+		BasicAuthMiddleware(r.configManager), // HTTP Basic 认证
+		ContentTypeMiddleware(),              // 内容类型检查
 	)(r.mux)
 
 	return handler

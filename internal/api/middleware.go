@@ -1,9 +1,13 @@
 package api
 
 import (
+	"encoding/base64"
 	"log"
 	"net/http"
+	"strings"
 	"time"
+
+	"wxbot-new/internal/config"
 )
 
 // Middleware 中间件函数类型
@@ -93,6 +97,88 @@ func ContentTypeMiddleware() Middleware {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// BasicAuthMiddleware HTTP Basic 认证中间件
+// 如果配置中存在 auth 数组,则启用认证;否则跳过
+func BasicAuthMiddleware(configManager *config.Manager) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			cfg := configManager.Get()
+
+			// 如果 auth 数组为空,跳过认证
+			if len(cfg.Auth) == 0 {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// 获取 Authorization 头
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				requestAuth(w)
+				return
+			}
+
+			// 解析 Basic Auth
+			username, password, ok := parseBasicAuth(authHeader)
+			if !ok {
+				requestAuth(w)
+				return
+			}
+
+			// 验证用户名和密码
+			if !validateCredentials(username, password, cfg.Auth) {
+				log.Printf("[Auth] 认证失败: %s from %s", username, r.RemoteAddr)
+				requestAuth(w)
+				return
+			}
+
+			// 认证成功
+			log.Printf("[Auth] 认证成功: %s from %s", username, r.RemoteAddr)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// parseBasicAuth 解析 HTTP Basic Auth 头
+func parseBasicAuth(authHeader string) (username, password string, ok bool) {
+	// Authorization: Basic base64(username:password)
+	const prefix = "Basic "
+	if !strings.HasPrefix(authHeader, prefix) {
+		return "", "", false
+	}
+
+	// 解码 base64
+	encoded := authHeader[len(prefix):]
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", "", false
+	}
+
+	// 分割 username:password
+	credentials := string(decoded)
+	idx := strings.Index(credentials, ":")
+	if idx == -1 {
+		return "", "", false
+	}
+
+	return credentials[:idx], credentials[idx+1:], true
+}
+
+// validateCredentials 验证用户名和密码
+func validateCredentials(username, password string, authUsers []config.AuthUser) bool {
+	for _, user := range authUsers {
+		if user.Username == username && user.Password == password {
+			return true
+		}
+	}
+	return false
+}
+
+// requestAuth 请求客户端提供认证信息
+func requestAuth(w http.ResponseWriter) {
+	w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+	ErrorResponse(w, http.StatusUnauthorized, "需要认证")
 }
 
 // responseWrapper 响应包装器,用于捕获状态码
