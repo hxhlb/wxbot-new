@@ -44,8 +44,7 @@ func main() {
 	}
 	defer memManager.Close()
 
-	logBothln("\n共享内存创建成功\n")
-	logBothln("\n等待拉起微信客户端...\n")
+	logBothln("共享内存创建成功")
 
 	// 等待3秒
 	time.Sleep(3 * time.Second)
