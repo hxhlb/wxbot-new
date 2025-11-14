@@ -138,6 +138,11 @@ func (s *WeChatService) Start() error {
 	log.Printf("成功注入微信，客户端ID: %d", clientID)
 	s.reconnectAttempts = 0
 
+	// 初始化心跳时间戳
+	s.mu.Lock()
+	s.lastHeartbeat = time.Now()
+	s.mu.Unlock()
+
 	// 启动心跳监控
 	go s.startHeartbeat()
 
