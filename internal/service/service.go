@@ -47,10 +47,6 @@ type callbackPayload struct {
 
 // NewWeChatService 创建微信服务
 func NewWeChatService(loaderPath, dllPath string, logRecvCallback int, callbackURLs []string) *WeChatService {
-	// 拷贝一份回调地址, 避免外部修改
-	urlsCopy := make([]string, len(callbackURLs))
-	copy(urlsCopy, callbackURLs)
-
 	return &WeChatService{
 		loaderPath:           loaderPath,
 		dllPath:              dllPath,
@@ -60,8 +56,25 @@ func NewWeChatService(loaderPath, dllPath string, logRecvCallback int, callbackU
 		responseManager:      NewResponseManager(10 * time.Second),
 		cleanupStopChan:      make(chan bool),
 		logRecvCallback:      logRecvCallback,
-		callbackURLs:         urlsCopy,
+		callbackURLs:         callbackURLs,
 	}
+}
+
+// SetLogRecvCallback 动态更新接收消息回调日志开关
+func (s *WeChatService) SetLogRecvCallback(logRecvCallback int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.logRecvCallback = logRecvCallback
+}
+
+// SetCallbackURLs 动态更新回调地址列表
+func (s *WeChatService) SetCallbackURLs(callbackURLs []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	urlsCopy := make([]string, len(callbackURLs))
+	copy(urlsCopy, callbackURLs)
+	s.callbackURLs = urlsCopy
 }
 
 // Initialize 初始化服务
@@ -112,7 +125,11 @@ func (s *WeChatService) registerCallbacks() {
 
 	// 接收消息回调
 	s.loader.AddRecvCallback(func(clientID uintptr, msgType int, data map[string]interface{}) {
-		if s.logRecvCallback == 1 {
+		s.mu.RLock()
+		logRecvCallback := s.logRecvCallback
+		s.mu.RUnlock()
+
+		if logRecvCallback == 1 {
 			log.Printf("收到来自客户端 %d 的消息 - 类型: %d, 数据: %v", clientID, msgType, data)
 		}
 
@@ -134,30 +151,26 @@ func (s *WeChatService) registerCallbacks() {
 
 		log.Printf("客户端 %d 已断开，当前连接数: %d", clientID, clientCount)
 	})
-
-	// 关闭回调
-	s.loader.AddCloseCallback(func(clientID uintptr) {
-		s.mu.Lock()
-		delete(s.connectedClients, clientID)
-		clientCount := len(s.connectedClients)
-		s.mu.Unlock()
-
-		log.Printf("客户端 %d 已断开，当前连接数: %d", clientID, clientCount)
-	})
 }
 
 // sendToCallbacks 将消息转发到配置的回调地址(异步, 仅限指定消息类型范围)
 func (s *WeChatService) sendToCallbacks(clientID uintptr, msgType int, data map[string]interface{}) {
-	// 仅在配置了回调地址且消息类型在 11046-11053 之间时转发
-	if len(s.callbackURLs) == 0 {
-		return
-	}
 	// 检查消息类型是否在11046-11053范围内，或者是指定的其他值
 	if !(msgType >= 11046 && msgType <= 11053 ||
 		msgType == 11058 || msgType == 11059 || msgType == 11095 ||
 		msgType == 11060 || msgType == 11061) {
 		return
 	}
+
+	// 仅在配置了回调地址时转发, 读配置时加读锁并拷贝一份避免并发问题
+	s.mu.RLock()
+	if len(s.callbackURLs) == 0 {
+		s.mu.RUnlock()
+		return
+	}
+	urls := make([]string, len(s.callbackURLs))
+	copy(urls, s.callbackURLs)
+	s.mu.RUnlock()
 
 	payload := callbackPayload{
 		ClientID: uint32(clientID),
@@ -171,7 +184,7 @@ func (s *WeChatService) sendToCallbacks(clientID uintptr, msgType int, data map[
 		return
 	}
 
-	for _, callbackURL := range s.callbackURLs {
+	for _, callbackURL := range urls {
 		urlCopy := callbackURL
 
 		// 异步发送回调请求

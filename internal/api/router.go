@@ -28,6 +28,7 @@ func NewRouter(configManager *config.Manager, wechatService *service.WeChatServi
 // SetWeChatService 设置微信服务实例
 func (r *Router) SetWeChatService(wechatService *service.WeChatService) {
 	r.wechatHandler = NewWeChatHandler(wechatService)
+	r.configHandler.SetWeChatService(wechatService)
 }
 
 // RegisterRoutes 注册所有路由

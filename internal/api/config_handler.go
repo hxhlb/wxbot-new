@@ -7,11 +7,13 @@ import (
 	"strings"
 
 	"wxbot-new/internal/config"
+	"wxbot-new/internal/service"
 )
 
 // ConfigHandler 配置接口处理器
 type ConfigHandler struct {
 	configManager *config.Manager
+	wechatService *service.WeChatService
 }
 
 // NewConfigHandler 创建配置处理器
@@ -19,6 +21,11 @@ func NewConfigHandler(configManager *config.Manager) *ConfigHandler {
 	return &ConfigHandler{
 		configManager: configManager,
 	}
+}
+
+// SetWeChatService 设置微信服务实例, 以便配置变更时同步更新相关参数
+func (h *ConfigHandler) SetWeChatService(wechatService *service.WeChatService) {
+	h.wechatService = wechatService
 }
 
 // GetConfig 查询完整配置
@@ -110,6 +117,13 @@ func (h *ConfigHandler) UpdateConfigItem(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// 配置更新后, 同步刷新微信服务相关配置(实时生效)
+	if h.wechatService != nil {
+		cfg := h.configManager.Get()
+		h.wechatService.SetLogRecvCallback(cfg.LogRecvCallback)
+		h.wechatService.SetCallbackURLs(cfg.CallbackURLs)
+	}
+
 	SuccessResponse(w, "更新成功", map[string]interface{}{
 		"key":   key,
 		"value": value,
@@ -137,6 +151,13 @@ func (h *ConfigHandler) updateConfigInternal(w http.ResponseWriter, r *http.Requ
 	if err := h.configManager.Update(&cfg); err != nil {
 		ErrorResponse(w, http.StatusInternalServerError, "更新配置失败: "+err.Error())
 		return
+	}
+
+	// 配置更新后, 同步刷新微信服务相关配置(实时生效)
+	if h.wechatService != nil {
+		newCfg := h.configManager.Get()
+		h.wechatService.SetLogRecvCallback(newCfg.LogRecvCallback)
+		h.wechatService.SetCallbackURLs(newCfg.CallbackURLs)
 	}
 
 	SuccessResponse(w, "更新成功", cfg)
