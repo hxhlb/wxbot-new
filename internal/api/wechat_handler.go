@@ -367,3 +367,38 @@ func (h *WeChatHandler) SendFileMessage(w http.ResponseWriter, r *http.Request) 
 
 	SuccessResponse(w, "发送文件消息成功", nil)
 }
+
+// SendCardMessage 发送名片消息
+func (h *WeChatHandler) SendCardMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		ErrorResponse(w, http.StatusMethodNotAllowed, "仅支持 POST 方法")
+		return
+	}
+
+	var req struct {
+		Wxid     string `json:"wxid"`
+		CardWxid string `json:"card_wxid"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "请求体不是有效的JSON")
+		return
+	}
+
+	if req.Wxid == "" {
+		ErrorResponse(w, http.StatusBadRequest, "wxid不能为空")
+		return
+	}
+	if req.CardWxid == "" {
+		ErrorResponse(w, http.StatusBadRequest, "card_wxid不能为空")
+		return
+	}
+
+	if err := h.wechatService.HelperSendCard(req.Wxid, req.CardWxid); err != nil {
+		log.Printf("发送名片消息失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "发送名片消息失败: "+err.Error())
+		return
+	}
+
+	SuccessResponse(w, "发送名片消息成功", nil)
+}
