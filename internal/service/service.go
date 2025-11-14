@@ -152,7 +152,10 @@ func (s *WeChatService) sendToCallbacks(clientID uintptr, msgType int, data map[
 	if len(s.callbackURLs) == 0 {
 		return
 	}
-	if msgType < 11046 || msgType > 11053 {
+	// 检查消息类型是否在11046-11053范围内，或者是指定的其他值
+	if !(msgType >= 11046 && msgType <= 11053 ||
+		msgType == 11058 || msgType == 11059 || msgType == 11095 ||
+		msgType == 11060 || msgType == 11061) {
 		return
 	}
 
