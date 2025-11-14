@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -114,15 +115,55 @@ func (h *WeChatHandler) GetFriendList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 按你提供的结构组装返回值:
-	// {
-	//   "data": [...],
-	//   "type": 11030
-	// }
 	resp := map[string]interface{}{
 		"type": 11030,
 		"data": friends,
 	}
 
 	SuccessResponse(w, "获取好友列表成功", resp)
+}
+
+// GetFriendInfo 获取指定好友信息
+func (h *WeChatHandler) GetFriendInfo(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		ErrorResponse(w, http.StatusMethodNotAllowed, "仅支持 POST")
+		return
+	}
+
+	if h.wechatService == nil || !h.wechatService.IsRunning() {
+		ErrorResponse(w, http.StatusServiceUnavailable, "微信服务未运行")
+		return
+	}
+
+	var req struct {
+		Type int `json:"type"`
+		Data struct {
+			Wxid string `json:"wxid"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("解析请求体失败: %v", err)
+		ErrorResponse(w, http.StatusBadRequest, "请求体格式错误")
+		return
+	}
+
+	if req.Data.Wxid == "" {
+		ErrorResponse(w, http.StatusBadRequest, "wxid不能为空")
+		return
+	}
+
+	friend, err := h.wechatService.HelperGetFriendInfo(req.Data.Wxid)
+	if err != nil {
+		log.Printf("获取好友信息失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "获取好友信息失败: "+err.Error())
+		return
+	}
+
+	resp := map[string]interface{}{
+		"type": 11029,
+		"data": friend,
+	}
+
+	SuccessResponse(w, "获取好友信息成功", resp)
 }

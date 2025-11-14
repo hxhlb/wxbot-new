@@ -72,3 +72,54 @@ func (s *WeChatService) HelperGetFriendList() ([]*message.FriendInfo, error) {
 	log.Printf("获取好友列表成功, 总数: %d", len(friends))
 	return friends, nil
 }
+
+// HelperGetFriendInfo 获取指定好友信息（同步方式, 带超时）
+func (s *WeChatService) HelperGetFriendInfo(wxid string) (*message.FriendInfo, error) {
+	// 构造消息
+	msg := message.Message{
+		Type: message.MTFriendInfo,
+		Data: map[string]interface{}{
+			"wxid": wxid,
+		},
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return nil, fmt.Errorf("序列化消息失败: %v", err)
+	}
+
+	// 使用消息类型和客户端ID注册等待响应
+	responseChan := s.responseManager.RegisterRequest(int(message.MTFriendInfo), s.clientID, 10*time.Second)
+
+	// 发送请求
+	log.Printf("获取好友信息请求 [msgType=%d, clientID=%d, wxid=%s]: %s", message.MTFriendInfo, s.clientID, wxid, string(data))
+	if err := s.SendMessage(string(data)); err != nil {
+		s.responseManager.CancelRequest(int(message.MTFriendInfo), s.clientID)
+		return nil, fmt.Errorf("发送消息失败: %v", err)
+	}
+
+	// 等待响应
+	respData, err := s.responseManager.WaitForResponse(responseChan, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("等待响应超时: %v", err)
+	}
+
+	// data 字段中是好友详细信息
+	raw, ok := respData["data"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("好友信息数据格式不正确: %v", respData)
+	}
+
+	bytes, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("序列化好友信息失败: %v", err)
+	}
+
+	friend := &message.FriendInfo{}
+	if err := json.Unmarshal(bytes, friend); err != nil {
+		return nil, fmt.Errorf("解析好友信息失败: %v", err)
+	}
+
+	log.Printf("获取好友信息成功: %+v", friend)
+	return friend, nil
+}

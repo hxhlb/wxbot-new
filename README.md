@@ -131,7 +131,8 @@ HelperRefreshQRCode()       // 刷新二维码（同步，10秒超时）
 
 #### 联系人管理 (contact.go)
 ```go
-HelperGetFriendList()  // 获取好友列表（异步）
+HelperGetFriendList()             // 获取好友列表（同步，10秒超时）
+HelperGetFriendInfo(wxid string)  // 获取指定好友信息（同步，10秒超时）
 ```
 
 ### 4. DLL 加载层 (internal/loader)
@@ -171,6 +172,7 @@ offsetInjectWeChatMultiOpen = 0xC780
 - `11025`: 用户登录
 - `11026`: 用户登出
 - `11028`: 当前登录信息
+- `11029`: 指定好友信息
 - `11104`: 注销当前微信账号
 - `11030`: 好友列表
 - `11036`: 发送文本消息

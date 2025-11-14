@@ -8,6 +8,7 @@ const (
 	MTUserLogin        MessageType = 11025 // 用户登录
 	MTUserLogout       MessageType = 11026 // 用户登出
 	MTCurrentLoginInfo MessageType = 11028 // 当前登录信息
+	MTFriendInfo       MessageType = 11029 // 指定好友信息
 	MTFriendList       MessageType = 11030 // 好友列表
 	MTSendText         MessageType = 11036 // 发送文本消息
 	MTSendAtText       MessageType = 11037 // 发送@消息

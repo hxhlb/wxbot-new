@@ -55,6 +55,8 @@ func (r *Router) RegisterRoutes() http.Handler {
 	r.mux.HandleFunc("/api/wechat/logout", r.wechatHandler.LogoutCurrent)
 	// 获取好友列表
 	r.mux.HandleFunc("/api/wechat/friend-list", r.wechatHandler.GetFriendList)
+	// 获取指定好友信息
+	r.mux.HandleFunc("/api/wechat/friend-info", r.wechatHandler.GetFriendInfo)
 
 	// 应用中间件链
 	handler := Chain(
