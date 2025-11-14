@@ -43,8 +43,12 @@ func (r *Router) RegisterRoutes() http.Handler {
 	r.mux.HandleFunc("/api/config/", r.handleConfigItem)
 
 	// ========== 微信服务 API ==========
+	// 检查微信服务状态
+	r.mux.HandleFunc("/api/wechat/status", r.wechatHandler.CheckServiceStatus)
 	// 获取当前登录信息
 	r.mux.HandleFunc("/api/wechat/login-info", r.wechatHandler.GetCurrentLoginInfo)
+	// 获取当前登录信息(别名)
+	r.mux.HandleFunc("/api/user-info", r.wechatHandler.GetCurrentLoginInfo)
 
 	// 应用中间件链
 	handler := Chain(

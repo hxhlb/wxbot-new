@@ -19,6 +19,26 @@ func NewWeChatHandler(wechatService *service.WeChatService) *WeChatHandler {
 	}
 }
 
+// CheckServiceStatus 检查微信服务状态
+func (h *WeChatHandler) CheckServiceStatus(w http.ResponseWriter, r *http.Request) {
+	status := map[string]interface{}{
+		"running": false,
+		"message": "微信服务未初始化",
+	}
+
+	if h.wechatService != nil {
+		isRunning := h.wechatService.IsRunning()
+		status["running"] = isRunning
+		if isRunning {
+			status["message"] = "微信服务正常运行"
+		} else {
+			status["message"] = "微信服务已停止"
+		}
+	}
+
+	SuccessResponse(w, "状态检查完成", status)
+}
+
 // GetCurrentLoginInfo 获取当前登录信息
 func (h *WeChatHandler) GetCurrentLoginInfo(w http.ResponseWriter, r *http.Request) {
 	if h.wechatService == nil || !h.wechatService.IsRunning() {
