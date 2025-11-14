@@ -18,7 +18,8 @@ func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	log.SetOutput(os.Stdout)
 
-	log.Println("====== 微信机器人服务启动 ======")
+	log.Println("====== WxBot 服务启动 By: Ripper ======")
+	log.Println("====== 基于微信版本 v4.1.2.17 ======")
 
 	// 1. 加载配置
 	configManager := config.NewManager("./config.json")
@@ -79,5 +80,5 @@ func main() {
 	apiServer.Stop()
 	wechatService.Stop()
 
-	log.Println("====== 微信机器人服务已停止 ======")
+	log.Println("====== WxBot 服务已停止 ======")
 }
