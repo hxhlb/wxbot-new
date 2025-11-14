@@ -31,13 +31,6 @@ func main() {
 	// 2. 初始化 HTTP API 服务
 	apiServer := api.NewServer(cfg.Host, cfg.Port, configManager)
 
-	// 启动 HTTP API 服务
-	go func() {
-		if err := apiServer.Start(); err != nil {
-			log.Printf("HTTP API 服务异常: %v", err)
-		}
-	}()
-
 	// 3. 初始化共享内存
 	memManager := memory.NewSharedMemoryManager()
 	if err := memManager.CreateAndWriteSharedMemory(); err != nil {
@@ -57,22 +50,32 @@ func main() {
 	// 5. 创建微信服务
 	wechatService := service.NewWeChatService(loaderPath, dllPath)
 
-	// 6. 设置信号处理器
+	// 6. 将微信服务实例传递给 API Server
+	apiServer.SetWeChatService(wechatService)
+
+	// 启动 HTTP API 服务
+	go func() {
+		if err := apiServer.Start(); err != nil {
+			log.Printf("HTTP API 服务异常: %v", err)
+		}
+	}()
+
+	// 7. 设置信号处理器
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// 7. 在goroutine中启动服务
+	// 8. 在goroutine中启动服务
 	go func() {
 		if err := wechatService.Start(); err != nil {
 			log.Printf("启动微信服务失败: %v", err)
 		}
 	}()
 
-	// 8. 等待信号
+	// 9. 等待信号
 	sig := <-sigChan
 	log.Printf("收到信号 %v，准备停止服务...", sig)
 
-	// 9. 停止所有服务
+	// 10. 停止所有服务
 	apiServer.Stop()
 	wechatService.Stop()
 

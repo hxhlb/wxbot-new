@@ -4,22 +4,30 @@ import (
 	"net/http"
 
 	"wxbot-new/internal/config"
+	"wxbot-new/internal/service"
 )
 
 // Router 路由管理器
 type Router struct {
 	mux           *http.ServeMux
 	configHandler *ConfigHandler
+	wechatHandler *WeChatHandler
 	configManager *config.Manager
 }
 
 // NewRouter 创建路由管理器
-func NewRouter(configManager *config.Manager) *Router {
+func NewRouter(configManager *config.Manager, wechatService *service.WeChatService) *Router {
 	return &Router{
 		mux:           http.NewServeMux(),
 		configHandler: NewConfigHandler(configManager),
+		wechatHandler: NewWeChatHandler(wechatService),
 		configManager: configManager,
 	}
+}
+
+// SetWeChatService 设置微信服务实例
+func (r *Router) SetWeChatService(wechatService *service.WeChatService) {
+	r.wechatHandler = NewWeChatHandler(wechatService)
 }
 
 // RegisterRoutes 注册所有路由
@@ -33,6 +41,10 @@ func (r *Router) RegisterRoutes() http.Handler {
 
 	// 单个配置项操作
 	r.mux.HandleFunc("/api/config/", r.handleConfigItem)
+
+	// ========== 微信服务 API ==========
+	// 获取当前登录信息
+	r.mux.HandleFunc("/api/wechat/login-info", r.wechatHandler.GetCurrentLoginInfo)
 
 	// 应用中间件链
 	handler := Chain(

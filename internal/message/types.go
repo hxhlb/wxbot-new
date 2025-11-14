@@ -59,3 +59,11 @@ type SendFileData struct {
 	ToWxid string `json:"to_wxid"`
 	File   string `json:"file"`
 }
+
+// CurrentLoginInfoData 当前登录信息数据
+type CurrentLoginInfoData struct {
+	Account  string `json:"account"`
+	Avatar   string `json:"avatar"`
+	Nickname string `json:"nickname"`
+	Wxid     string `json:"wxid"`
+}

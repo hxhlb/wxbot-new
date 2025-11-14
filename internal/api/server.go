@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"wxbot-new/internal/config"
+	"wxbot-new/internal/service"
 )
 
 // Server HTTP API 服务器
@@ -23,8 +24,13 @@ func NewServer(host string, port int, configManager *config.Manager) *Server {
 	return &Server{
 		host:   host,
 		port:   port,
-		router: NewRouter(configManager),
+		router: NewRouter(configManager, nil),
 	}
+}
+
+// SetWeChatService 设置微信服务实例
+func (s *Server) SetWeChatService(wechatService *service.WeChatService) {
+	s.router.SetWeChatService(wechatService)
 }
 
 // Start 启动服务器

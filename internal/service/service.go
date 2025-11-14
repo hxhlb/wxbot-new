@@ -24,6 +24,8 @@ type WeChatService struct {
 	maxReconnectAttempts int
 	reconnectDelay       time.Duration
 	connectedClients     map[uintptr]bool
+	responseManager      *ResponseManager
+	cleanupStopChan      chan bool
 	mu                   sync.RWMutex
 }
 
@@ -35,6 +37,8 @@ func NewWeChatService(loaderPath, dllPath string) *WeChatService {
 		maxReconnectAttempts: 5,
 		reconnectDelay:       10 * time.Second,
 		connectedClients:     make(map[uintptr]bool),
+		responseManager:      NewResponseManager(10 * time.Second),
+		cleanupStopChan:      make(chan bool),
 	}
 }
 
@@ -86,8 +90,15 @@ func (s *WeChatService) registerCallbacks() {
 	s.loader.AddRecvCallback(func(clientID uintptr, msgType int, data map[string]interface{}) {
 		log.Printf("收到来自客户端 %d 的消息 - 类型: %d, 数据: %v", clientID, msgType, data)
 
+		msgTypeEnum := message.MessageType(msgType)
+
+		// 先尝试将响应传递给响应管理器
+		if s.responseManager.HandleResponse(msgTypeEnum, data) {
+			log.Printf("响应已发送给等待的请求: 类型 %d", msgType)
+		}
+
 		// 处理不同类型的消息
-		switch message.MessageType(msgType) {
+		switch msgTypeEnum {
 		case message.MTUserLogin:
 			log.Printf("用户登录: %v", data)
 		case message.MTUserLogout:
@@ -96,6 +107,8 @@ func (s *WeChatService) registerCallbacks() {
 			log.Printf("调试日志: %v", data)
 		case message.MTFriendList:
 			log.Printf("收取好友列表数据: %v", data)
+		case message.MTCurrentLoginInfo:
+			log.Printf("收取当前登录信息: %v", data)
 		case message.MTChatMessage:
 			log.Printf("收取聊天消息数据: %v", data)
 			// 示例：向文件传输助手发送消息
@@ -145,6 +158,9 @@ func (s *WeChatService) Start() error {
 
 	// 启动心跳监控
 	go s.startHeartbeat()
+
+	// 启动响应管理器清理协程
+	go s.responseManager.StartCleanupRoutine(5*time.Second, s.cleanupStopChan)
 
 	// 启动主服务循环
 	s.runService()
@@ -230,6 +246,9 @@ func (s *WeChatService) Stop() {
 	log.Println("正在停止微信服务...")
 	s.shouldStop = true
 	s.isRunning = false
+
+	// 停止清理协程
+	close(s.cleanupStopChan)
 
 	if s.loader != nil {
 		if err := s.loader.Release(); err != nil {
