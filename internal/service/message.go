@@ -9,11 +9,11 @@ import (
 )
 
 // HelperSendText 发送普通文本消息
-func (s *WeChatService) HelperSendText(toWxid, content string) error {
+func (s *WeChatService) HelperSendText(wxid, content string) error {
 	msg := message.Message{
 		Type: message.MTSendText,
 		Data: map[string]interface{}{
-			"to_wxid": toWxid,
+			"to_wxid": wxid,
 			"content": content,
 		},
 	}
@@ -47,7 +47,7 @@ func (s *WeChatService) HelperSendAtText(toWxid, content string, atList []string
 	return s.SendMessage(string(data))
 }
 
-// HelperSendCard 发送卡片消息
+// HelperSendCard 发送名片消息
 func (s *WeChatService) HelperSendCard(toWxid, cardWxid string) error {
 	msg := message.Message{
 		Type: message.MTSendCard,

@@ -59,6 +59,14 @@ func (r *Router) RegisterRoutes() http.Handler {
 	r.mux.HandleFunc("/api/wechat/group-list", r.wechatHandler.GetGroupList)
 	// 获取群成员列表
 	r.mux.HandleFunc("/api/wechat/group-member-list", r.wechatHandler.GetGroupMemberList)
+	// 发送普通文本消息
+	r.mux.HandleFunc("/api/wechat/send-text", r.wechatHandler.SendTextMessage)
+	// 发送@文本消息
+	r.mux.HandleFunc("/api/wechat/send-at-text", r.wechatHandler.SendAtTextMessage)
+	// 发送图片消息
+	r.mux.HandleFunc("/api/wechat/send-image", r.wechatHandler.SendImageMessage)
+	// 发送文件消息
+	r.mux.HandleFunc("/api/wechat/send-file", r.wechatHandler.SendFileMessage)
 
 	// 应用中间件链
 	handler := Chain(

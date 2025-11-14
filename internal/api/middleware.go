@@ -89,8 +89,10 @@ func ContentTypeMiddleware() Middleware {
 			// 对于 POST/PUT 请求,检查 Content-Type
 			if r.Method == http.MethodPost || r.Method == http.MethodPut {
 				contentType := r.Header.Get("Content-Type")
-				if contentType != "" && contentType != "application/json" {
-					ErrorResponse(w, http.StatusUnsupportedMediaType, "仅支持 application/json")
+				if contentType != "" &&
+					!strings.HasPrefix(contentType, "application/json") &&
+					!strings.HasPrefix(contentType, "multipart/form-data") {
+					ErrorResponse(w, http.StatusUnsupportedMediaType, "仅支持 application/json 或 multipart/form-data")
 					return
 				}
 			}

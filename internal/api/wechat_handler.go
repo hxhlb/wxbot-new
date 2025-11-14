@@ -1,9 +1,14 @@
 package api
 
 import (
+	"encoding/json"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 
 	"wxbot-new/internal/service"
 )
@@ -163,4 +168,202 @@ func (h *WeChatHandler) GetGroupMemberList(w http.ResponseWriter, r *http.Reques
 	}
 
 	SuccessResponse(w, "获取群成员列表成功", result)
+}
+
+// SendTextMessage 发送普通文本消息
+func (h *WeChatHandler) SendTextMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		ErrorResponse(w, http.StatusMethodNotAllowed, "仅支持 POST 方法")
+		return
+	}
+
+	var req struct {
+		Wxid    string `json:"wxid"`
+		Content string `json:"content"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "请求体不是有效的JSON")
+		return
+	}
+
+	if req.Wxid == "" {
+		ErrorResponse(w, http.StatusBadRequest, "wxid不能为空")
+		return
+	}
+	if req.Content == "" {
+		ErrorResponse(w, http.StatusBadRequest, "content不能为空")
+		return
+	}
+
+	if err := h.wechatService.HelperSendText(req.Wxid, req.Content); err != nil {
+		log.Printf("发送文本消息失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "发送文本消息失败: "+err.Error())
+		return
+	}
+
+	// 不需要返回业务数据
+	SuccessResponse(w, "发送文本消息成功", nil)
+}
+
+// SendAtTextMessage 发送@文本消息
+func (h *WeChatHandler) SendAtTextMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		ErrorResponse(w, http.StatusMethodNotAllowed, "仅支持 POST 方法")
+		return
+	}
+
+	var req struct {
+		Wxid    string   `json:"wxid"`
+		Content string   `json:"content"`
+		AtList  []string `json:"at_list"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "请求体不是有效的JSON")
+		return
+	}
+
+	if req.Wxid == "" {
+		ErrorResponse(w, http.StatusBadRequest, "wxid不能为空")
+		return
+	}
+	if req.Content == "" {
+		ErrorResponse(w, http.StatusBadRequest, "content不能为空")
+		return
+	}
+
+	if err := h.wechatService.HelperSendAtText(req.Wxid, req.Content, req.AtList); err != nil {
+		log.Printf("发送@文本消息失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "发送@文本消息失败: "+err.Error())
+		return
+	}
+
+	SuccessResponse(w, "发送@文本消息成功", nil)
+}
+
+// SendImageMessage 发送图片消息
+func (h *WeChatHandler) SendImageMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		ErrorResponse(w, http.StatusMethodNotAllowed, "仅支持 POST 方法")
+		return
+	}
+
+	// 解析 multipart/form-data
+	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB
+		ErrorResponse(w, http.StatusBadRequest, "解析上传表单失败: "+err.Error())
+		return
+	}
+
+	wxid := r.FormValue("wxid")
+	if wxid == "" {
+		ErrorResponse(w, http.StatusBadRequest, "wxid不能为空")
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "获取上传文件失败: "+err.Error())
+		return
+	}
+	defer file.Close()
+
+	uploadDir := "uploads"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "创建上传目录失败: "+err.Error())
+		return
+	}
+
+	ext := filepath.Ext(header.Filename)
+	fileName := strconv.FormatInt(time.Now().UnixNano(), 10) + ext
+	localPath := filepath.Join(uploadDir, fileName)
+
+	out, err := os.Create(localPath)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "保存上传文件失败: "+err.Error())
+		return
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, file); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "写入上传文件失败: "+err.Error())
+		return
+	}
+
+	absPath, err := filepath.Abs(localPath)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "获取文件绝对路径失败: "+err.Error())
+		return
+	}
+
+	if err := h.wechatService.HelperSendImage(wxid, absPath); err != nil {
+		log.Printf("发送图片消息失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "发送图片消息失败: "+err.Error())
+		return
+	}
+
+	SuccessResponse(w, "发送图片消息成功", nil)
+}
+
+// SendFileMessage 发送文件消息
+func (h *WeChatHandler) SendFileMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		ErrorResponse(w, http.StatusMethodNotAllowed, "仅支持 POST 方法")
+		return
+	}
+
+	// 解析 multipart/form-data
+	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB
+		ErrorResponse(w, http.StatusBadRequest, "解析上传表单失败: "+err.Error())
+		return
+	}
+
+	wxid := r.FormValue("wxid")
+	if wxid == "" {
+		ErrorResponse(w, http.StatusBadRequest, "wxid不能为空")
+		return
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "获取上传文件失败: "+err.Error())
+		return
+	}
+	defer file.Close()
+
+	uploadDir := "uploads"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "创建上传目录失败: "+err.Error())
+		return
+	}
+
+	ext := filepath.Ext(header.Filename)
+	fileName := strconv.FormatInt(time.Now().UnixNano(), 10) + ext
+	localPath := filepath.Join(uploadDir, fileName)
+
+	out, err := os.Create(localPath)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "保存上传文件失败: "+err.Error())
+		return
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, file); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "写入上传文件失败: "+err.Error())
+		return
+	}
+
+	absPath, err := filepath.Abs(localPath)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "获取文件绝对路径失败: "+err.Error())
+		return
+	}
+
+	if err := h.wechatService.HelperSendFile(wxid, absPath); err != nil {
+		log.Printf("发送文件消息失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "发送文件消息失败: "+err.Error())
+		return
+	}
+
+	SuccessResponse(w, "发送文件消息成功", nil)
 }
