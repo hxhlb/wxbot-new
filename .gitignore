@@ -40,3 +40,4 @@ __pycache__/
 vendor/
 go.sum
 config.json
+logs/

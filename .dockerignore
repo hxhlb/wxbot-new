@@ -23,3 +23,4 @@ docker-compose.yml
 redis_data
 app_logs
 config.json
+logs/
