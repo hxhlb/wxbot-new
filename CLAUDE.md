@@ -37,8 +37,25 @@ make tidy
 ### 构建要求
 
 - 必须编译为 **32位 Windows** 程序: `GOOS=windows GOARCH=386`
-- 禁用 CGO: `CGO_ENABLED=0`
+- **启用 CGO**: `CGO_ENABLED=1` (使用 C 回调降低检测风险)
+- 需要 MinGW-w64 交叉编译器: `i686-w64-mingw32-gcc`
 - 运行需要 `NoveLoader.dll` 和 `NoveHelper.dll` 在同目录
+
+### 编译环境配置
+
+```bash
+# macOS
+brew install mingw-w64
+
+# Ubuntu/Debian
+sudo apt install gcc-mingw-w64-i686
+
+# Fedora/RHEL
+sudo dnf install mingw32-gcc
+
+# 验证安装
+make check-compiler
+```
 
 ## 代码架构
 
@@ -82,10 +99,12 @@ memory + message (基础设施层)
 - 支持 8 个核心函数: InitWeChatSocket, InjectWeChat, SendWeChatData 等
 - ⚠️ 偏移地址与 DLL 版本强绑定
 
-**3. CallbackManager** (`internal/loader/callback.go`)
-- 使用 `windows.NewCallback` 将 Go 函数转为 C 回调指针
+**3. CallbackManager** (`internal/loader/callback.go`) ⭐ **CGO 实现**
+- 使用 **纯 C 函数**作为回调（降低检测风险，替代 `windows.NewCallback`）
+- 回调流程: `C 函数 → //export Go 函数 → globalCallbackManager`
 - 管理 3 类回调: 连接/接收消息/断开
 - 线程安全 (sync.RWMutex)
+- 详见: [CGO_MIGRATION.md](CGO_MIGRATION.md)
 
 **4. WeChatService** (`internal/service/service.go`)
 - **心跳监控**: 每 60 秒检查,120 秒无响应触发重连

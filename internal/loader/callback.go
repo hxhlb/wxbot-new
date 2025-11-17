@@ -1,12 +1,49 @@
 package loader
 
+/*
+#include <windows.h>
+#include <stdint.h>
+
+// 前向声明：Go 侧实现的回调函数
+extern void goOnConnect(uintptr_t clientID);
+extern void goOnRecv(uintptr_t clientID, uintptr_t data, uint32_t length);
+extern void goOnClose(uintptr_t clientID);
+
+// C 回调函数（提供给 DLL 调用，真正的 C 代码，无 Go 特征）
+static uintptr_t __stdcall c_connect_callback(void* clientID) {
+    goOnConnect((uintptr_t)clientID);
+    return 0;
+}
+
+static uintptr_t __stdcall c_recv_callback(uintptr_t clientID, uintptr_t data, uint32_t length) {
+    goOnRecv(clientID, data, length);
+    return 0;
+}
+
+static uintptr_t __stdcall c_close_callback(uintptr_t clientID) {
+    goOnClose(clientID);
+    return 0;
+}
+
+// 获取 C 函数指针的辅助函数
+static void* get_connect_callback_ptr() {
+    return (void*)c_connect_callback;
+}
+
+static void* get_recv_callback_ptr() {
+    return (void*)c_recv_callback;
+}
+
+static void* get_close_callback_ptr() {
+    return (void*)c_close_callback;
+}
+*/
+import "C"
 import (
 	"encoding/json"
 	"log"
 	"sync"
 	"unsafe"
-
-	"golang.org/x/sys/windows"
 )
 
 // CallbackFunc 回调函数类型
@@ -22,6 +59,9 @@ type CallbackManager struct {
 	mu               sync.RWMutex
 	debugMode        bool // 调试模式，控制是否打印原始数据
 }
+
+// 全局回调管理器（CGO 需要全局访问）
+var globalCallbackManager *CallbackManager
 
 // NewCallbackManager 创建回调管理器
 func NewCallbackManager() *CallbackManager {
@@ -157,17 +197,40 @@ func (m *CallbackManager) onClose(clientID uintptr) uintptr {
 	return 0
 }
 
-// GetConnectCallbackPtr 获取连接回调函数指针
+//export goOnConnect
+func goOnConnect(clientID uintptr) {
+	if globalCallbackManager != nil {
+		globalCallbackManager.onConnect(clientID)
+	}
+}
+
+//export goOnRecv
+func goOnRecv(clientID uintptr, data uintptr, length uint32) {
+	if globalCallbackManager != nil {
+		globalCallbackManager.onRecv(clientID, data, length)
+	}
+}
+
+//export goOnClose
+func goOnClose(clientID uintptr) {
+	if globalCallbackManager != nil {
+		globalCallbackManager.onClose(clientID)
+	}
+}
+
+// GetConnectCallbackPtr 获取连接回调函数指针（CGO 版本）
 func (m *CallbackManager) GetConnectCallbackPtr() uintptr {
-	return windows.NewCallback(m.onConnect)
+	// 设置全局回调管理器
+	globalCallbackManager = m
+	return uintptr(C.get_connect_callback_ptr())
 }
 
-// GetRecvCallbackPtr 获取接收消息回调函数指针
+// GetRecvCallbackPtr 获取接收消息回调函数指针（CGO 版本）
 func (m *CallbackManager) GetRecvCallbackPtr() uintptr {
-	return windows.NewCallback(m.onRecv)
+	return uintptr(C.get_recv_callback_ptr())
 }
 
-// GetCloseCallbackPtr 获取关闭回调函数指针
+// GetCloseCallbackPtr 获取关闭回调函数指针（CGO 版本）
 func (m *CallbackManager) GetCloseCallbackPtr() uintptr {
-	return windows.NewCallback(m.onClose)
+	return uintptr(C.get_close_callback_ptr())
 }
