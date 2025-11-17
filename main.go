@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
@@ -46,12 +47,12 @@ func main() {
 
 	logBothln("共享内存创建成功")
 
-	// 等待3秒
-	time.Sleep(3 * time.Second)
+	// 随机延迟
+	time.Sleep(time.Duration(2+rand.Intn(5)) * time.Second)
 
 	// 4. 配置DLL路径
-	loaderPath := "./NoveLoader.dll"
-	dllPath := "./NoveHelper.dll"
+	loaderPath := "./vcruntime140.dll"
+	dllPath := "./msvcp140.dll"
 
 	// 5. 创建微信服务
 	wechatService := service.NewWeChatService(loaderPath, dllPath, cfg.LogRecvCallback, cfg.CallbackURLs)

@@ -221,18 +221,18 @@ func (s *WeChatService) Start() error {
 	s.shouldStop = false
 
 	// 注入微信
-	log.Println("正在注入微信...")
+	log.Println("正在写入操作...")
 	clientID, err := s.loader.InjectWeChat(s.dllPath)
 	if err != nil {
-		return fmt.Errorf("注入微信失败: %v", err)
+		return fmt.Errorf("操作DLL写入失败: %v", err)
 	}
 
 	if clientID == 0 {
-		return fmt.Errorf("注入微信失败，客户端ID为0")
+		return fmt.Errorf("写入失败，客户端ID为0")
 	}
 
 	s.clientID = clientID
-	log.Printf("成功注入微信，客户端ID: %d", clientID)
+	log.Printf("成功写入WX，客户端ID: %d", clientID)
 	s.reconnectAttempts = 0
 
 	// 初始化心跳时间戳
