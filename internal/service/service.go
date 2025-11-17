@@ -257,7 +257,6 @@ func (s *WeChatService) startHeartbeat() {
 	log.Println("心跳监控已启动")
 
 	for s.isRunning && !s.shouldStop {
-		log.Println("心跳监控验证...")
 		s.mu.Lock()
 		s.lastHeartbeat = time.Now()
 		s.mu.Unlock()

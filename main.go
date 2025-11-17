@@ -23,7 +23,7 @@ func main() {
 	}
 
 	logBothln("====== WxBot 服务启动 By: Ripper ======")
-	logBothln("====== 版本: v0.0.3 ======\n")
+	logBothln("====== 版本: v0.0.4 ======\n")
 	logBothln("====== 基于微信版本 v4.1.2.17 ======\n")
 
 	// 1. 加载配置
