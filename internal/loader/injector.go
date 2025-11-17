@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
+	"syscall"
 	"time"
+	"unsafe"
 )
 
 // InjectionMethod 注入方式
@@ -138,16 +141,41 @@ func (inj *Injector) injectClassic() (uint32, error) {
 
 // findWeChatProcess 查找微信进程
 func (inj *Injector) findWeChatProcess() (uint32, error) {
-	// 简化实现: 假设微信进程名为 WeChat.exe
-	// 实际应该使用 CreateToolhelp32Snapshot 枚举进程
+	// 使用 Windows API 枚举进程查找 WeChat.exe
+	snapshot, err := syscall.CreateToolhelp32Snapshot(syscall.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return 0, fmt.Errorf("创建进程快照失败: %v", err)
+	}
+	defer syscall.CloseHandle(snapshot)
 
-	// 这里使用一个简化的方法
-	// 真实实现需要调用 Windows API 枚举进程
+	var procEntry syscall.ProcessEntry32
+	procEntry.Size = uint32(unsafe.Sizeof(procEntry))
 
-	// 临时解决方案: 使用经典注入器返回的PID
-	// 或者要求用户传入PID
+	// 获取第一个进程
+	err = syscall.Process32First(snapshot, &procEntry)
+	if err != nil {
+		return 0, fmt.Errorf("枚举进程失败: %v", err)
+	}
 
-	return 0, fmt.Errorf("自动查找进程未实现,请使用经典模式或传入PID")
+	// 遍历所有进程
+	for {
+		// 将进程名转换为字符串
+		exeFile := syscall.UTF16ToString(procEntry.ExeFile[:])
+
+		// 查找 WeChat.exe (不区分大小写)
+		if strings.EqualFold(exeFile, "WeChat.exe") {
+			log.Printf("[Injector] 找到微信进程: %s (PID=%d)", exeFile, procEntry.ProcessID)
+			return procEntry.ProcessID, nil
+		}
+
+		// 获取下一个进程
+		err = syscall.Process32Next(snapshot, &procEntry)
+		if err != nil {
+			break
+		}
+	}
+
+	return 0, fmt.Errorf("未找到微信进程 (WeChat.exe)")
 }
 
 // GetLoader 获取NoveLoader实例
