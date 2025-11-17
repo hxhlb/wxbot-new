@@ -20,6 +20,7 @@ type Config struct {
 	Auth            []AuthUser `json:"auth,omitempty"`              // HTTP Basic 认证用户列表
 	LogRecvCallback int        `json:"log_recv_callback,omitempty"` // 是否输出接收消息回调日志(1=输出,0=关闭)
 	CallbackURLs    []string   `json:"callback_urls,omitempty"`     // 消息回调地址列表
+	UseManualMap    bool       `json:"use_manual_map,omitempty"`    // 是否使用Manual Mapping注入(true=隐蔽模式,false=兼容模式)
 }
 
 // Manager 配置管理器
@@ -43,8 +44,9 @@ func getDefaultConfig() *Config {
 		Host:            "0.0.0.0",
 		Port:            5000,
 		Auth:            []AuthUser{}, // 默认空数组,不启用认证
-		LogRecvCallback: 0,            // 默认开启接收消息回调日志
+		LogRecvCallback: 0,            // 默认关闭接收消息回调日志
 		CallbackURLs:    []string{},   // 默认无回调地址
+		UseManualMap:    true,         // 默认使用Manual Mapping注入(true=隐蔽模式,false=兼容模式)
 	}
 }
 

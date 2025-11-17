@@ -10,13 +10,18 @@ MAIN := .
 DIST := dist
 OUT_EXE := $(DIST)/$(APP).exe
 
-.PHONY: all build clean tidy run help example-basic example-auto-reply
+# DLL 源目录和嵌入目录
+LIBS_DIR := libs
+EMBEDDED_DIR := internal/loader/embedded
+
+.PHONY: all build clean tidy run help example-basic example-auto-reply prepare-embed
 
 all: build
 
 help:
 	@echo "可用命令:"
-	@echo "  make build              - 构建 32 位 Windows 可执行文件"
+	@echo "  make build              - 构建 32 位 Windows 可执行文件 (DLL已嵌入)"
+	@echo "  make build-classic      - 构建不嵌入DLL的版本 (需要外部DLL文件)"
 	@echo "  make clean              - 清理 dist 目录"
 	@echo "  make tidy               - 整理 Go 依赖"
 	@echo "  make run                - 直接运行程序（需在 Windows 上）"
@@ -26,10 +31,36 @@ help:
 tidy:
 	go mod tidy
 
-build: tidy
+# 准备嵌入资源
+prepare-embed:
+	@echo "[INFO] 准备嵌入DLL资源..."
+	@mkdir -p $(EMBEDDED_DIR)
+	@if [ -f "$(LIBS_DIR)/NoveLoader.dll" ]; then \
+		cp $(LIBS_DIR)/NoveLoader.dll $(EMBEDDED_DIR)/; \
+		echo "[OK] 已复制 NoveLoader.dll"; \
+	else \
+		echo "[WARN] 未找到 NoveLoader.dll"; \
+	fi
+	@if [ -f "$(LIBS_DIR)/NoveHelper.dll" ]; then \
+		cp $(LIBS_DIR)/NoveHelper.dll $(EMBEDDED_DIR)/; \
+		echo "[OK] 已复制 NoveHelper.dll"; \
+	else \
+		echo "[WARN] 未找到 NoveHelper.dll"; \
+	fi
+
+# 构建 (嵌入DLL)
+build: tidy prepare-embed
 	@mkdir -p $(DIST)
 	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o $(OUT_EXE) $(MAIN)
-	@echo "[OK] 构建完成: $(OUT_EXE)"
+	@echo "[OK] 构建完成 (DLL已嵌入): $(OUT_EXE)"
+	@ls -lh $(OUT_EXE)
+
+# 构建经典版本 (不嵌入DLL,需要外部文件)
+build-classic: tidy
+	@mkdir -p $(DIST)
+	GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -tags=noembed -o $(OUT_EXE) $(MAIN)
+	@echo "[OK] 构建完成 (需要外部DLL): $(OUT_EXE)"
+	@echo "[INFO] 请确保运行时目录包含 NoveLoader.dll 和 NoveHelper.dll"
 
 build-debug: tidy
 	@mkdir -p $(DIST)

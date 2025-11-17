@@ -25,3 +25,5 @@ app_logs
 config.json
 logs/
 libs/
+*.dll
+*.so

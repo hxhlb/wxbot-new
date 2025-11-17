@@ -23,7 +23,7 @@ func main() {
 	}
 
 	logBothln("====== WxBot 服务启动 By: Ripper ======")
-	logBothln("====== 版本: v0.0.4 ======\n")
+	logBothln("====== 版本: v0.0.5 ======\n")
 	logBothln("====== 基于微信版本 v4.1.2.17 ======\n")
 
 	// 1. 加载配置
@@ -53,11 +53,17 @@ func main() {
 	loaderPath := "./NoveLoader.dll"
 	dllPath := "./NoveHelper.dll"
 
-	// 5. 创建微信服务
-	wechatService := service.NewWeChatService(loaderPath, dllPath, cfg.LogRecvCallback, cfg.CallbackURLs)
+	// 5. 创建增强型微信服务 (支持Manual Mapping)
+	wechatServiceEnhanced := service.NewWeChatServiceEnhanced(
+		loaderPath,
+		dllPath,
+		cfg.LogRecvCallback,
+		cfg.CallbackURLs,
+		cfg.UseManualMap, // 从配置读取注入方式
+	)
 
-	// 6. 将微信服务实例传递给 API Server
-	apiServer.SetWeChatService(wechatService)
+	// 6. 将微信服务实例传递给 API Server (使用基类接口)
+	apiServer.SetWeChatService(wechatServiceEnhanced.WeChatService)
 
 	// 启动 HTTP API 服务
 	go func() {
@@ -72,7 +78,7 @@ func main() {
 
 	// 8. 在goroutine中启动服务
 	go func() {
-		if err := wechatService.Start(); err != nil {
+		if err := wechatServiceEnhanced.Start(); err != nil {
 			logBothf("启动微信服务失败: %v", err)
 		}
 	}()
@@ -83,7 +89,7 @@ func main() {
 
 	// 10. 停止所有服务
 	apiServer.Stop()
-	wechatService.Stop()
+	wechatServiceEnhanced.Stop()
 
 	logBothln("\n\n====== WxBot 服务已停止 ======")
 }
