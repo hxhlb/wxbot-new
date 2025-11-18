@@ -25,6 +25,7 @@ type NoveLoader struct {
 	dll             *syscall.DLL
 	baseAddr        uintptr
 	callbackManager *CallbackManager
+	manualModule    *manualModule
 }
 
 // NewNoveLoader 创建DLL加载器
@@ -33,17 +34,17 @@ func NewNoveLoader(loaderPath string) (*NoveLoader, error) {
 	if _, err := os.Stat(loaderPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("loader文件不存在: %s", loaderPath)
 	}
-
-	// 加载DLL
-	dll, err := syscall.LoadDLL(loaderPath)
+	// 仅使用 Manual DLL Mapping（手动映射），不再回退到 LoadDLL
+	mod, err := manualLoadModule(loaderPath)
 	if err != nil {
-		return nil, fmt.Errorf("加载DLL失败: %v", err)
+		return nil, fmt.Errorf("手动映射DLL失败: %v", err)
 	}
 
 	loader := &NoveLoader{
-		dll:             dll,
-		baseAddr:        uintptr(dll.Handle),
+		dll:             nil,
+		baseAddr:        mod.base,
 		callbackManager: NewCallbackManager(),
+		manualModule:    mod,
 	}
 
 	// 使用UTF-8编码
@@ -237,6 +238,13 @@ func (l *NoveLoader) SetDebugMode(enabled bool) {
 func (l *NoveLoader) Release() error {
 	if err := l.DestroyWeChat(); err != nil {
 		return err
+	}
+
+	if l.manualModule != nil {
+		if err := manualFreeModule(l.manualModule); err != nil {
+			return err
+		}
+		l.manualModule = nil
 	}
 
 	if l.dll != nil {
