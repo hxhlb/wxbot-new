@@ -9,6 +9,7 @@ import (
 	"os"
 	"sync"
 	"time"
+	"wxbot-new/internal/utils"
 
 	"wxbot-new/internal/loader"
 )
@@ -221,7 +222,7 @@ func (s *WeChatService) Start() error {
 	s.shouldStop = false
 
 	// 注入微信
-	log.Println("正在写入操作...")
+	utils.LogBothln("正在写入操作...")
 	clientID, err := s.loader.InjectWeChat(s.dllPath)
 	if err != nil {
 		return fmt.Errorf("操作DLL写入失败: %v", err)
@@ -232,7 +233,7 @@ func (s *WeChatService) Start() error {
 	}
 
 	s.clientID = clientID
-	log.Printf("成功写入WX，客户端ID: %d", clientID)
+	utils.LogBothf("成功写入WX，客户端ID: %d", clientID)
 	s.reconnectAttempts = 0
 
 	// 初始化心跳时间戳
@@ -254,7 +255,7 @@ func (s *WeChatService) Start() error {
 
 // startHeartbeat 启动心跳监控
 func (s *WeChatService) startHeartbeat() {
-	log.Println("心跳监控已启动")
+	utils.LogBothln("心跳监控已启动")
 
 	for s.isRunning && !s.shouldStop {
 		s.mu.Lock()
@@ -267,7 +268,7 @@ func (s *WeChatService) startHeartbeat() {
 
 // runService 运行服务主循环
 func (s *WeChatService) runService() {
-	log.Println("微信服务已启动，正在运行...")
+	utils.LogBothln("微信服务已启动，正在运行...")
 
 	defer s.Stop()
 
@@ -278,7 +279,7 @@ func (s *WeChatService) runService() {
 		s.mu.RUnlock()
 
 		if time.Since(lastHeartbeat) > 120*time.Second {
-			log.Println("检测到连接超时，尝试重连...")
+			utils.LogBothln("检测到连接超时，尝试重连...")
 			if !s.reconnect() {
 				break
 			}
@@ -292,12 +293,12 @@ func (s *WeChatService) runService() {
 // reconnect 重连服务
 func (s *WeChatService) reconnect() bool {
 	if s.reconnectAttempts >= s.maxReconnectAttempts {
-		log.Printf("重连次数超过限制 (%d)，停止重连", s.maxReconnectAttempts)
+		utils.LogBothf("重连次数超过限制 (%d)，停止重连", s.maxReconnectAttempts)
 		return false
 	}
 
 	s.reconnectAttempts++
-	log.Printf("尝试重连 (%d/%d)...", s.reconnectAttempts, s.maxReconnectAttempts)
+	utils.LogBothf("尝试重连 (%d/%d)...", s.reconnectAttempts, s.maxReconnectAttempts)
 
 	// 清理当前连接
 	if s.loader != nil {
@@ -309,12 +310,12 @@ func (s *WeChatService) reconnect() bool {
 	// 重新注入
 	clientID, err := s.loader.InjectWeChat(s.dllPath)
 	if err != nil || clientID == 0 {
-		log.Println("重连失败")
+		utils.LogBothln("重连失败")
 		return false
 	}
 
 	s.clientID = clientID
-	log.Printf("重连成功，客户端ID: %d", clientID)
+	utils.LogBothf("重连成功，客户端ID: %d", clientID)
 
 	s.mu.Lock()
 	s.lastHeartbeat = time.Now()
@@ -326,7 +327,7 @@ func (s *WeChatService) reconnect() bool {
 
 // Stop 停止服务
 func (s *WeChatService) Stop() {
-	log.Println("正在停止微信服务...")
+	utils.LogBothln("正在停止微信服务...")
 	s.shouldStop = true
 	s.isRunning = false
 
@@ -335,13 +336,13 @@ func (s *WeChatService) Stop() {
 
 	if s.loader != nil {
 		if err := s.loader.Release(); err != nil {
-			log.Printf("释放资源时发生异常: %v", err)
+			utils.LogBothf("释放资源时发生异常: %v", err)
 		} else {
-			log.Println("微信连接已断开")
+			utils.LogBothln("微信连接已断开")
 		}
 	}
 
-	log.Println("微信服务已停止")
+	utils.LogBothln("微信服务已停止")
 }
 
 // SendMessage 发送消息

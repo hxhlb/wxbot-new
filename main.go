@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -14,6 +12,7 @@ import (
 	"wxbot-new/internal/logging"
 	"wxbot-new/internal/memory"
 	"wxbot-new/internal/service"
+	"wxbot-new/internal/utils"
 )
 
 func main() {
@@ -23,9 +22,9 @@ func main() {
 		logBothFatalf("初始化日志失败: %v", err)
 	}
 
-	logBothln("====== WxBot 服务启动 By: Ripper ======")
-	logBothln("====== 版本: v0.0.5-beta2 ======\n")
-	logBothln("====== 基于微信版本 v4.1.2.17 ======\n")
+	utils.LogBothln("====== WxBot 服务启动 By: Ripper ======")
+	utils.LogBothln("====== 版本: v0.0.5-beta2 ======\n")
+	utils.LogBothln("====== 基于微信版本 v4.1.2.17 ======\n")
 
 	// 1. 加载配置
 	configManager := config.NewManager("./config.json")
@@ -33,7 +32,7 @@ func main() {
 		logBothFatalf("加载配置失败: %v", err)
 	}
 	cfg := configManager.Get()
-	logBothf("配置加载成功: Host=%s, Port=%d", cfg.Host, cfg.Port)
+	utils.LogBothf("配置加载成功: Host=%s, Port=%d", cfg.Host, cfg.Port)
 
 	// 2. 初始化 HTTP API 服务
 	apiServer := api.NewServer(cfg.Host, cfg.Port, configManager)
@@ -45,7 +44,7 @@ func main() {
 	}
 	defer memManager.Close()
 
-	logBothln("共享内存创建成功")
+	utils.LogBothln("共享内存创建成功")
 
 	// 随机延迟
 	time.Sleep(time.Duration(2+rand.Intn(5)) * time.Second)
@@ -63,7 +62,7 @@ func main() {
 	// 启动 HTTP API 服务
 	go func() {
 		if err := apiServer.Start(); err != nil {
-			logBothf("HTTP API 服务异常: %v", err)
+			utils.LogBothf("HTTP API 服务异常: %v", err)
 		}
 	}()
 
@@ -74,35 +73,23 @@ func main() {
 	// 8. 在goroutine中启动服务
 	go func() {
 		if err := wechatService.Start(); err != nil {
-			logBothf("启动微信服务失败: %v", err)
+			utils.LogBothf("启动微信服务失败: %v", err)
 		}
 	}()
 
 	// 9. 等待信号
 	sig := <-sigChan
-	logBothf("收到信号 %v，准备停止服务...", sig)
+	utils.LogBothf("收到信号 %v，准备停止服务...", sig)
 
 	// 10. 停止所有服务
 	apiServer.Stop()
 	wechatService.Stop()
 
-	logBothln("\n\n====== WxBot 服务已停止 ======")
-}
-
-// logBothln 在日志文件和控制台同时输出一行日志
-func logBothln(v ...interface{}) {
-	log.Println(v...)
-	fmt.Println(v...)
-}
-
-// logBothf 在日志文件和控制台同时输出格式化日志
-func logBothf(format string, v ...interface{}) {
-	log.Printf(format, v...)
-	fmt.Printf(format+"\n", v...)
+	utils.LogBothln("\n\n====== WxBot 服务已停止 ======")
 }
 
 // logBothFatalf 在日志文件和控制台输出格式化日志后退出程序
 func logBothFatalf(format string, v ...interface{}) {
-	logBothf(format, v...)
+	utils.LogBothf(format, v...)
 	os.Exit(1)
 }
