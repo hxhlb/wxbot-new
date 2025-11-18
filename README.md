@@ -1,7 +1,9 @@
 # WxBot New
 
 基于 DLL 注入技术的微信(**版本 4.1.2.17**)机器人服务，提供 HTTP API 接口进行微信自动化操作。   
-接口文档: [https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5](https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5)
+接口文档: [https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5](https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5)  
+
+**本项目不提供所需的 `DLL` 文件, 请自行根据实际情况下载所需的依赖文件**   
 
 ## 项目特性
 
@@ -128,7 +130,7 @@ wxbot-new/
 - **连接回调**：客户端连接时触发
 - **接收消息回调**：收到微信消息时触发
 - **断开回调**：客户端断开时触发
-- 使用 `windows.NewCallback` 实现 Go ↔ C 回调转换
+- 使用CGO调用DLL函数
 - 自动解析 JSON 数据
 - 线程安全的回调链管理
 
@@ -137,8 +139,8 @@ wxbot-new/
 
 ### 环境要求
 - Go 1.18+
-- Windows 系统（32 位）
-- NoveLoader.dll 和 NoveHelper.dll
+- Windows 系统
+- `vcruntime140.dll` `msvcp140.dll` (注意这是变种并非真实文件名, 自行获取后与 `wxbot.exe` 放在同一目录)
 
 ### 编译运行
 
@@ -310,10 +312,10 @@ main()
   → 创建共享内存 (延迟3秒)
   → 启动 HTTP API 服务 (0.0.0.0:5000)
   → 启动微信服务
-    → 加载 NoveLoader.dll
+    → 加载 DLl
     → 注册回调函数
     → 初始化 Socket
-    → 注入 NoveHelper.dll
+    → 注入 DLL
     → 启动心跳监控协程
     → 启动响应清理协程
 ```
@@ -351,7 +353,7 @@ startHeartbeat() 协程 (每60秒)
 ## 注意事项
 
 1. **仅支持 Windows 32 位**：DLL 是 32 位的，必须编译为 32 位程序（`GOARCH=386`）
-2. **DLL 文件**：需要自行准备 `NoveLoader.dll` 和 `NoveHelper.dll`
+2. **DLL 文件**：需要自行准备 `vcruntime140.dll` `msvcp140.dll` (注意这是变种并非真实文件名)
 3. **微信版本兼容性**：确保 DLL 与微信版本兼容，偏移地址硬编码
 4. **安全性警告**：DLL 注入属于侵入性操作，请在授权环境下使用
 5. **仅供学习**：本项目仅供学习交流，请勿用于非法用途
