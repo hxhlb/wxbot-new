@@ -334,6 +334,13 @@ func manualLoadModule(path string) (*manualModule, error) {
 
 	_ = delta // 仅用于说明，实际已经在 applyRelocations 中使用
 
+	// 混淆：擦除 PE 头特征 (防止微信进程扫描)
+	obfuscate.JitterDelay(100)
+	obfuscate.ErasePEHeader(base)
+
+	// 混淆：随机化内存布局 (破坏固定模式)
+	obfuscate.RandomizeMemoryLayout(base, sizeOfImage)
+
 	return &manualModule{
 		base:       base,
 		size:       sizeOfImage,
@@ -346,6 +353,9 @@ func manualFreeModule(m *manualModule) error {
 	if m == nil || m.base == 0 {
 		return nil
 	}
+
+	// 恢复 PE 头 (可选,视情况而定)
+	// obfuscate.RestorePEHeader(m.base)
 
 	// 调用 DllMain(DLL_PROCESS_DETACH)
 	if m.entryPoint != 0 {
