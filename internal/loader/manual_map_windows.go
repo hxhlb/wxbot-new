@@ -9,6 +9,8 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
+
+	"wxbot-new/internal/obfuscate"
 )
 
 // 仅支持 32 位 PE 手动映射，用于降低 DLL 被直接检测的风险。
@@ -30,7 +32,10 @@ const (
 	memCommit                   = 0x1000
 	memReserve                  = 0x2000
 	memRelease                  = 0x8000
+	pageReadWrite               = 0x04
+	pageExecuteRead             = 0x20
 	pageExecuteReadWrite        = 0x40
+	pageReadOnly                = 0x02
 	dllProcessAttach            = 1
 	dllProcessDetach            = 0
 	imageDirectoryEntryImport   = 1
@@ -39,6 +44,9 @@ const (
 	imageSizeofBaseRelocation   = 8
 	imageRelBasedHighLow        = 3
 	imageOrdinalFlag32          = 0x80000000
+	imageSCNMemExecute          = 0x20000000
+	imageSCNMemRead             = 0x40000000
+	imageSCNMemWrite            = 0x80000000
 )
 
 // PE 结构定义（32 位）
@@ -155,20 +163,25 @@ type imageTLSDirectory32 struct {
 	Characteristics       uint32
 }
 
-var (
-	kernel32           = syscall.NewLazyDLL("kernel32.dll")
-	procVirtualAlloc   = kernel32.NewProc("VirtualAlloc")
-	procVirtualFree    = kernel32.NewProc("VirtualFree")
-	procLoadLibraryA   = kernel32.NewProc("LoadLibraryA")
-	procGetProcAddress = kernel32.NewProc("GetProcAddress")
-)
+// 不再使用全局变量，改为运行时动态加载
+// API 调用统一通过 obfuscate.CallAPI 进行
 
 // manualLoadModule 手动映射一个 32 位 DLL 到当前进程
 func manualLoadModule(path string) (*manualModule, error) {
+	// 混淆：预热延迟
+	obfuscate.PrewarmDelay()
+
+	// 创建 PE 解析混淆器
+	splitter := obfuscate.NewSplitPEParsingOps()
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("读取 DLL 失败: %w", err)
 	}
+
+	// 混淆：假装读取其他文件
+	obfuscate.LegitimateFileOps()
+	splitter.NextStep()
 
 	if len(data) < 0x100 {
 		return nil, fmt.Errorf("DLL 文件过小，可能不是有效的 PE 文件")
@@ -179,6 +192,8 @@ func manualLoadModule(path string) (*manualModule, error) {
 	if err := binary.Read(bytesReader(data, 0), binary.LittleEndian, &dos); err != nil {
 		return nil, fmt.Errorf("解析 DOS Header 失败: %w", err)
 	}
+	splitter.NextStep()
+
 	if dos.EMagic != 0x5A4D { // "MZ"
 		return nil, fmt.Errorf("无效的 DOS 魔数")
 	}
@@ -188,11 +203,15 @@ func manualLoadModule(path string) (*manualModule, error) {
 		return nil, fmt.Errorf("无效的 NT Header 偏移")
 	}
 
+	splitter.NextStep()
+
 	// 解析 NT Headers
 	var nt imageNTHeaders32
 	if err := binary.Read(bytesReader(data, ntOffset), binary.LittleEndian, &nt); err != nil {
 		return nil, fmt.Errorf("解析 NT Header 失败: %w", err)
 	}
+	splitter.NextStep()
+
 	if nt.Signature != 0x00004550 { // "PE\0\0"
 		return nil, fmt.Errorf("无效的 PE 签名")
 	}
@@ -200,15 +219,20 @@ func manualLoadModule(path string) (*manualModule, error) {
 		return nil, fmt.Errorf("只支持 32 位 PE (Magic=0x10B)")
 	}
 
+	splitter.NextStep()
+
 	sizeOfImage := uintptr(nt.OptionalHeader.SizeOfImage)
 	sizeOfHeaders := uintptr(nt.OptionalHeader.SizeOfHeaders)
 
-	// 申请内存
-	base, _, callErr := procVirtualAlloc.Call(
+	// 申请内存 - 先使用 PAGE_READWRITE 降低检测风险
+	// 使用动态 API 加载
+	base, callErr := obfuscate.CallAPI(
+		obfuscate.GetKernel32(),
+		obfuscate.GetVirtualAlloc(),
 		0,
 		sizeOfImage,
 		memCommit|memReserve,
-		pageExecuteReadWrite,
+		pageReadWrite, // 修改为 RW 权限
 	)
 	if base == 0 {
 		return nil, fmt.Errorf("VirtualAlloc 失败: %v", callErr)
@@ -218,6 +242,7 @@ func manualLoadModule(path string) (*manualModule, error) {
 
 	// 拷贝 Headers
 	copy(mem[:sizeOfHeaders], data[:sizeOfHeaders])
+	splitter.NextStep()
 
 	// 解析 Section Headers
 	sectionOffset := ntOffset + int(unsafe.Sizeof(nt))
@@ -225,8 +250,12 @@ func manualLoadModule(path string) (*manualModule, error) {
 	for i := 0; i < int(nt.FileHeader.NumberOfSections); i++ {
 		offset := sectionOffset + i*int(unsafe.Sizeof(imageSectionHeader{}))
 		if err := binary.Read(bytesReader(data, offset), binary.LittleEndian, &sections[i]); err != nil {
-			procVirtualFree.Call(base, 0, memRelease)
+			obfuscate.CallAPI(obfuscate.GetKernel32(), obfuscate.GetVirtualFree(), base, 0, memRelease)
 			return nil, fmt.Errorf("解析 SectionHeader[%d] 失败: %w", i, err)
+		}
+		// 每解析 2 个节就混淆一次
+		if i%2 == 0 {
+			splitter.NextStep()
 		}
 	}
 
@@ -237,14 +266,14 @@ func manualLoadModule(path string) (*manualModule, error) {
 			continue
 		}
 		if int(sec.PointerToRawData)+int(sec.SizeOfRawData) > len(data) {
-			procVirtualFree.Call(base, 0, memRelease)
+			obfuscate.CallAPI(obfuscate.GetKernel32(), obfuscate.GetVirtualFree(), base, 0, memRelease)
 			return nil, fmt.Errorf("Section[%d] 数据越界", i)
 		}
 
 		start := int(sec.VirtualAddress)
 		end := start + int(sec.SizeOfRawData)
 		if end > len(mem) {
-			procVirtualFree.Call(base, 0, memRelease)
+			obfuscate.CallAPI(obfuscate.GetKernel32(), obfuscate.GetVirtualFree(), base, 0, memRelease)
 			return nil, fmt.Errorf("Section[%d] 映射越界", i)
 		}
 		copy(mem[start:end], data[sec.PointerToRawData:sec.PointerToRawData+sec.SizeOfRawData])
@@ -256,7 +285,7 @@ func manualLoadModule(path string) (*manualModule, error) {
 	// 处理重定位
 	if nt.OptionalHeader.DataDirectory[imageDirectoryEntryBasReloc].VirtualAddress != 0 {
 		if err := applyRelocations(base, &nt); err != nil {
-			procVirtualFree.Call(base, 0, memRelease)
+			obfuscate.CallAPI(obfuscate.GetKernel32(), obfuscate.GetVirtualFree(), base, 0, memRelease)
 			return nil, err
 		}
 	}
@@ -264,7 +293,7 @@ func manualLoadModule(path string) (*manualModule, error) {
 	// 解析导入表
 	if nt.OptionalHeader.DataDirectory[imageDirectoryEntryImport].VirtualAddress != 0 {
 		if err := resolveImports(base, &nt); err != nil {
-			procVirtualFree.Call(base, 0, memRelease)
+			obfuscate.CallAPI(obfuscate.GetKernel32(), obfuscate.GetVirtualFree(), base, 0, memRelease)
 			return nil, err
 		}
 	}
@@ -272,9 +301,15 @@ func manualLoadModule(path string) (*manualModule, error) {
 	// 处理 TLS（如有）
 	if nt.OptionalHeader.DataDirectory[imageDirectoryEntryTLS].VirtualAddress != 0 {
 		if err := callTLSCallbacks(base, &nt); err != nil {
-			procVirtualFree.Call(base, 0, memRelease)
+			obfuscate.CallAPI(obfuscate.GetKernel32(), obfuscate.GetVirtualFree(), base, 0, memRelease)
 			return nil, err
 		}
+	}
+
+	// 在调用 DllMain 前，根据节属性设置正确的内存保护
+	if err := applySectionProtections(base, sections); err != nil {
+		obfuscate.CallAPI(obfuscate.GetKernel32(), obfuscate.GetVirtualFree(), base, 0, memRelease)
+		return nil, err
 	}
 
 	// 调用 DllMain(DLL_PROCESS_ATTACH)
@@ -292,7 +327,7 @@ func manualLoadModule(path string) (*manualModule, error) {
 		)
 		if ret == 0 {
 			// 某些 DLL 仍可能返回 0，但为保险起见视为错误
-			procVirtualFree.Call(base, 0, memRelease)
+			obfuscate.CallAPI(obfuscate.GetKernel32(), obfuscate.GetVirtualFree(), base, 0, memRelease)
 			return nil, fmt.Errorf("DllMain(DLL_PROCESS_ATTACH) 返回失败")
 		}
 	}
@@ -323,8 +358,8 @@ func manualFreeModule(m *manualModule) error {
 		)
 	}
 
-	_, _, err := procVirtualFree.Call(m.base, 0, memRelease)
-	if err != nil && err.(syscall.Errno) != 0 {
+	_, err := obfuscate.CallAPI(obfuscate.GetKernel32(), obfuscate.GetVirtualFree(), m.base, 0, memRelease)
+	if err != nil {
 		return fmt.Errorf("VirtualFree 失败: %v", err)
 	}
 	return nil
@@ -471,11 +506,12 @@ func loadLibraryA(name string) (uintptr, error) {
 		return 0, fmt.Errorf("空 DLL 名称")
 	}
 	b := append([]byte(name), 0)
-	mod, _, err := procLoadLibraryA.Call(uintptr(unsafe.Pointer(&b[0])))
+	mod, err := obfuscate.CallAPI(
+		obfuscate.GetKernel32(),
+		obfuscate.GetLoadLibraryA(),
+		uintptr(unsafe.Pointer(&b[0])),
+	)
 	if mod == 0 {
-		if errno, ok := err.(syscall.Errno); ok && errno == 0 {
-			return 0, fmt.Errorf("LoadLibraryA(%s) 调用失败", name)
-		}
 		return 0, fmt.Errorf("LoadLibraryA(%s) 失败: %v", name, err)
 	}
 	return mod, nil
@@ -486,22 +522,26 @@ func getProcAddress(mod uintptr, name string) (uintptr, error) {
 		return 0, fmt.Errorf("空函数名")
 	}
 	b := append([]byte(name), 0)
-	addr, _, err := procGetProcAddress.Call(mod, uintptr(unsafe.Pointer(&b[0])))
+	addr, err := obfuscate.CallAPI(
+		obfuscate.GetKernel32(),
+		obfuscate.GetGetProcAddress(),
+		mod,
+		uintptr(unsafe.Pointer(&b[0])),
+	)
 	if addr == 0 {
-		if errno, ok := err.(syscall.Errno); ok && errno == 0 {
-			return 0, fmt.Errorf("GetProcAddress(%s) 调用失败", name)
-		}
 		return 0, fmt.Errorf("GetProcAddress(%s) 失败: %v", name, err)
 	}
 	return addr, nil
 }
 
 func getProcAddressOrdinal(mod uintptr, ordinal uint16) (uintptr, error) {
-	addr, _, err := procGetProcAddress.Call(mod, uintptr(ordinal))
+	addr, err := obfuscate.CallAPI(
+		obfuscate.GetKernel32(),
+		obfuscate.GetGetProcAddress(),
+		mod,
+		uintptr(ordinal),
+	)
 	if addr == 0 {
-		if errno, ok := err.(syscall.Errno); ok && errno == 0 {
-			return 0, fmt.Errorf("GetProcAddress(ordinal=%d) 调用失败", ordinal)
-		}
 		return 0, fmt.Errorf("GetProcAddress(ordinal=%d) 失败: %v", ordinal, err)
 	}
 	return addr, nil
@@ -532,4 +572,57 @@ func rvaToString(base uintptr, rva uintptr) string {
 		ptr++
 	}
 	return string(buf)
+}
+
+// applySectionProtections 根据节属性设置内存保护
+func applySectionProtections(base uintptr, sections []imageSectionHeader) error {
+	for i := range sections {
+		sec := &sections[i]
+		if sec.VirtualSize == 0 {
+			continue
+		}
+
+		// 计算该节的地址和大小
+		sectionAddr := base + uintptr(sec.VirtualAddress)
+		sectionSize := uintptr(sec.VirtualSize)
+
+		// 根据节特征确定保护属性
+		var protect uint32
+		characteristics := sec.Characteristics
+
+		isExecutable := (characteristics & imageSCNMemExecute) != 0
+		isWritable := (characteristics & imageSCNMemWrite) != 0
+		isReadable := (characteristics & imageSCNMemRead) != 0
+
+		if isExecutable {
+			if isWritable {
+				protect = pageExecuteReadWrite
+			} else {
+				protect = pageExecuteRead // 可执行节通常是只读+执行
+			}
+		} else if isWritable {
+			protect = pageReadWrite
+		} else if isReadable {
+			protect = pageReadOnly
+		} else {
+			protect = pageReadOnly // 默认只读
+		}
+
+		// 调用 VirtualProtect 修改保护属性
+		var oldProtect uint32
+		ret, err := obfuscate.CallAPI(
+			obfuscate.GetKernel32(),
+			obfuscate.GetVirtualProtect(),
+			sectionAddr,
+			sectionSize,
+			uintptr(protect),
+			uintptr(unsafe.Pointer(&oldProtect)),
+		)
+
+		if ret == 0 {
+			return fmt.Errorf("VirtualProtect 失败 (Section[%d]): %v", i, err)
+		}
+	}
+
+	return nil
 }

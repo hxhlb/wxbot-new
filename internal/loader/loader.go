@@ -5,6 +5,8 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
+
+	"wxbot-new/internal/obfuscate"
 )
 
 // DLL函数偏移地址
@@ -30,10 +32,17 @@ type NoveLoader struct {
 
 // NewNoveLoader 创建DLL加载器
 func NewNoveLoader(loaderPath string) (*NoveLoader, error) {
+	// 混淆：随机延迟
+	obfuscate.RandomDelay(500, 1500)
+
 	// 检查文件是否存在
 	if _, err := os.Stat(loaderPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("loader文件不存在: %s", loaderPath)
 	}
+
+	// 混淆：模拟正常操作
+	obfuscate.LegitimateFileOps()
+
 	// 仅使用 Manual DLL Mapping（手动映射），不再回退到 LoadDLL
 	mod, err := manualLoadModule(loaderPath)
 	if err != nil {

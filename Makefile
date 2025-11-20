@@ -28,8 +28,14 @@ else
     CC_CHECK := $(shell where gcc 2> nul)
 endif
 
-# LDFLAGS 优化选项
-LDFLAGS := -s -w -extldflags "-static"
+# LDFLAGS 优化选项 (增强混淆)
+LDFLAGS := -s -w \
+	-extldflags "-static" \
+	-X 'main.buildTime=$(shell date -u +%Y%m%d%H%M%S)' \
+	-X 'main.gitCommit=$(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)'
+
+# GCFLAGS 编译器标志 (禁用内联优化以混淆)
+GCFLAGS := -trimpath
 
 .PHONY: all build build-debug clean tidy run help example-basic example-auto-reply check-compiler
 
@@ -73,15 +79,20 @@ tidy:
 	@echo "✓ 依赖整理完成"
 
 build: check-compiler tidy
-	@echo "开始构建 (CGO 模式)..."
+	@echo "开始构建 (CGO 模式 + 混淆优化)..."
 	@mkdir -p $(DIST)
 	@echo "  - 目标: $(OS)/$(ARCH)"
 	@echo "  - 编译器: $(CC)"
 	@echo "  - 输出: $(OUT_EXE)"
 	@GOOS=$(OS) GOARCH=$(ARCH) CGO_ENABLED=$(CGO_ENABLED) CC=$(CC) \
-		go build -trimpath -ldflags="$(LDFLAGS)" -o $(OUT_EXE) $(MAIN)
+		go build $(GCFLAGS) -ldflags="$(LDFLAGS)" -o $(OUT_EXE) $(MAIN)
 	@echo "✓ 构建完成: $(OUT_EXE)"
 	@echo "  文件大小: $$(du -h $(OUT_EXE) | cut -f1)"
+	@echo ""
+	@echo "应用混淆优化:"
+	@echo "  ✓ 去除符号表和调试信息 (-s -w)"
+	@echo "  ✓ 静态链接 (-extldflags -static)"
+	@echo "  ✓ 去除路径信息 (-trimpath)"
 
 build-debug: check-compiler tidy
 	@echo "开始构建调试版本 (CGO 模式)..."

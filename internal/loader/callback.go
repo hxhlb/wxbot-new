@@ -9,32 +9,68 @@ extern void goOnConnect(uintptr_t clientID);
 extern void goOnRecv(uintptr_t clientID, uintptr_t data, uint32_t length);
 extern void goOnClose(uintptr_t clientID);
 
+// 混淆：添加无意义操作干扰静态分析
+static volatile int obfuscation_dummy = 0;
+
+static void obfuscate_noise() {
+    for(int i = 0; i < 50; i++) {
+        obfuscation_dummy += (i * 7) % 13;
+    }
+}
+
 // C 回调函数（提供给 DLL 调用，真正的 C 代码，无 Go 特征）
+// 添加混淆操作
 static uintptr_t __stdcall c_connect_callback(void* clientID) {
-    goOnConnect((uintptr_t)clientID);
+    // 混淆：插入噪声操作
+    obfuscate_noise();
+
+    // 混淆：间接调用
+    volatile uintptr_t id = (uintptr_t)clientID;
+    goOnConnect(id);
+
+    // 混淆：返回前添加延迟
+    obfuscate_noise();
     return 0;
 }
 
 static uintptr_t __stdcall c_recv_callback(uintptr_t clientID, uintptr_t data, uint32_t length) {
-    goOnRecv(clientID, data, length);
+    // 混淆：插入噪声操作
+    obfuscate_noise();
+
+    // 混淆：使用 volatile 变量
+    volatile uintptr_t cid = clientID;
+    volatile uintptr_t d = data;
+    volatile uint32_t len = length;
+
+    goOnRecv(cid, d, len);
+
     return 0;
 }
 
 static uintptr_t __stdcall c_close_callback(uintptr_t clientID) {
-    goOnClose(clientID);
+    // 混淆：插入噪声操作
+    obfuscate_noise();
+
+    volatile uintptr_t id = clientID;
+    goOnClose(id);
+
     return 0;
 }
 
 // 获取 C 函数指针的辅助函数
+// 添加混淆层
 static void* get_connect_callback_ptr() {
+    obfuscate_noise();
     return (void*)c_connect_callback;
 }
 
 static void* get_recv_callback_ptr() {
+    obfuscate_noise();
     return (void*)c_recv_callback;
 }
 
 static void* get_close_callback_ptr() {
+    obfuscate_noise();
     return (void*)c_close_callback;
 }
 */
