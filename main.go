@@ -23,7 +23,7 @@ func main() {
 	}
 
 	utils.LogBothln("====== WxBot 服务启动 By: Ripper ======")
-	utils.LogBothln("====== 版本: v0.0.6-beta1 ======\n")
+	utils.LogBothln("====== 版本: v0.0.6-beta2 ======\n")
 	utils.LogBothln("====== 基于微信版本 v4.1.2.17 ======\n")
 
 	// 1. 加载配置

@@ -232,14 +232,14 @@ func (h *WeChatHandler) SendTextMessage(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := h.wechatService.HelperSendText(req.Wxid, req.Content); err != nil {
-		log.Printf("发送文本消息失败: %v", err)
-		ErrorResponse(w, http.StatusInternalServerError, "发送文本消息失败: "+err.Error())
+	if err := h.wechatService.SendCDNText(req.Wxid, req.Content); err != nil {
+		log.Printf("发送文本消息(CDN)失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "发送文本消息(CDN)失败: "+err.Error())
 		return
 	}
 
 	// 不需要返回业务数据
-	SuccessResponse(w, "发送文本消息成功", nil)
+	SuccessResponse(w, "发送文本消息(CDN)成功", nil)
 }
 
 // SendAtTextMessage 发送@文本消息
@@ -253,6 +253,7 @@ func (h *WeChatHandler) SendAtTextMessage(w http.ResponseWriter, r *http.Request
 		Wxid    string   `json:"wxid"`
 		Content string   `json:"content"`
 		AtList  []string `json:"at_list"`
+		IsAtAll bool     `json:"is_at_all"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -269,7 +270,12 @@ func (h *WeChatHandler) SendAtTextMessage(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := h.wechatService.HelperSendAtText(req.Wxid, req.Content, req.AtList); err != nil {
+	if !req.IsAtAll && len(req.AtList) == 0 {
+		ErrorResponse(w, http.StatusBadRequest, "at_list不能为空")
+		return
+	}
+
+	if err := h.wechatService.SendAtCDNText(req.Wxid, req.Content, req.AtList, req.IsAtAll); err != nil {
 		log.Printf("发送@文本消息失败: %v", err)
 		ErrorResponse(w, http.StatusInternalServerError, "发送@文本消息失败: "+err.Error())
 		return

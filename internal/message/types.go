@@ -17,7 +17,9 @@ const (
 	MTGroupList         MessageType = 11031 // 群列表
 	MTGroupMemberList   MessageType = 11032 // 群成员列表
 	MTSendText          MessageType = 11036 // 发送文本消息
+	MTSendCDNText       MessageType = 11237 // 发送文本消息(CDN)
 	MTSendAtText        MessageType = 11037 // 发送@消息
+	MTSendAtCDNText     MessageType = 11240 // 发送@消息(CDN)
 	MTSendCard          MessageType = 11038 // 发送卡片
 	MTSendURL           MessageType = 11039 // 发送链接
 	MTSendImage         MessageType = 11040 // 发送图片
