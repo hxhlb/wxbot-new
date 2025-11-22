@@ -50,8 +50,8 @@ func main() {
 	time.Sleep(time.Duration(2+rand.Intn(5)) * time.Second)
 
 	// 4. 配置DLL路径
-	loaderPath := "./vcruntime140.dll"
-	dllPath := "./msvcp140.dll"
+	loaderPath := "./NoveLoader.dll"
+	dllPath := "./NoveHelper.dll"
 
 	// 5. 创建微信服务
 	wechatService := service.NewWeChatService(loaderPath, dllPath, cfg.LogRecvCallback, cfg.CallbackURLs)
