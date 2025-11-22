@@ -1,91 +1,123 @@
 # WxBot New
 
-基于 DLL 注入技术的微信(**版本 4.1.2.17**)机器人服务，提供 HTTP API 接口进行微信自动化操作。   
-接口文档: [https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5](https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5)  
+基于 DLL 注入技术的微信 (**版本 4.1.2.17**) 机器人服务，提供 HTTP API 接口进行微信自动化控制（仅支持 32 位 Windows）。  
+接口文档（示例）：  
+- Apifox: [https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5](https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5)  
+- ShowDoc: https://www.showdoc.com.cn/2447538212104511 （密码: `qqq222..`）
 
-**本项目不提供所需的 `DLL` 文件, 请自行根据实际情况下载所需的依赖文件**   
+**本项目不提供所需的 DLL 文件，请自行根据实际情况准备 `NoveLoader.dll`、`NoveHelper.dll` 以及运行所需的 VC 运行库。**
+
+当前程序版本（日志中输出）：`v0.0.7`。
 
 ## 项目特性
 
-- ✅ **完整的 HTTP API**：RESTful API 设计，易于集成
-- ✅ **异步响应管理**：支持同步等待响应的消息操作
-- ✅ **自动重连**：心跳监控 + 自动重连机制
-- ✅ **配置管理**：支持动态配置和 HTTP Basic 认证
-- ✅ **高性能**：Go 实现，内存占用低，并发能力强
-- ✅ **生产就绪**：包含中间件、日志、优雅关闭等企业级特性
+- ✅ **完整 HTTP API**：RESTful 设计，覆盖登录、消息、好友/群管理等能力
+- ✅ **异步响应管理**：支持同步等待 DLL 回调结果，超时自动清理
+- ✅ **自动重连**：心跳监控 + 自动重连机制，提升稳定性
+- ✅ **配置管理**：支持动态更新配置、HTTP Basic 认证、日志/回调开关
+- ✅ **消息回调推送**：可将指定消息类型转发至自定义 HTTP 回调地址
+- ✅ **日志落盘**：按天滚动写入 `./logs/wxbot-YYYY-MM-DD.log`，同时输出控制台
+- ✅ **安全混淆**：手动映射 DLL + 动态 Windows API 调用 + CGO 回调，降低静态检测风险
 
 ## 项目结构
 
 ```
 wxbot-new/
-├── main.go                           # 程序入口
-├── config.json                       # 配置文件（自动生成）
+├── main.go                     # 程序入口
+├── config.example.json         # 配置示例
 ├── internal/
-│   ├── api/                          # HTTP API 服务层
-│   │   ├── server.go                 # HTTP 服务器管理
-│   │   ├── router.go                 # 路由注册
-│   │   ├── wechat_handler.go         # 微信接口处理
-│   │   ├── config_handler.go         # 配置接口处理
-│   │   ├── middleware.go             # 中间件（日志、CORS、认证等）
-│   │   └── response.go               # 统一响应格式
-│   ├── config/                       # 配置管理
-│   │   └── config.go                 # 配置加载、更新、保存
-│   ├── service/                      # 微信业务服务层
-│   │   ├── service.go                # 服务生命周期管理
-│   │   ├── response_manager.go       # 异步响应管理器
-│   │   ├── message.go                # 消息发送方法
-│   │   ├── user.go                   # 用户信息获取
-│   │   └── contact.go                # 联系人管理
-│   ├── loader/                       # DLL 加载层
-│   │   ├── loader.go                 # DLL 加载和函数调用
-│   │   └── callback.go               # Go ↔ C 回调转换
-│   ├── message/                      # 消息类型定义
-│   │   └── types.go                  # 消息常量和数据结构
-│   └── memory/                       # 共享内存管理
-│       └── shared_memory.go          # Windows 共享内存操作
-├── NoveLoader.dll                    # 加载器DLL（需自行准备）
-└── NoveHelper.dll                    # 助手DLL（需自行准备）
+│   ├── api/                    # HTTP API 服务层
+│   ├── config/                 # 配置管理
+│   ├── loader/                 # DLL 加载 + 回调
+│   ├── logging/                # 日志初始化（按天切割）
+│   ├── memory/                 # 共享内存管理
+│   ├── message/                # 消息类型与数据结构
+│   ├── obfuscate/              # 混淆与动态 API 调用
+│   ├── service/                # 微信业务服务层
+│   └── utils/                  # 日志工具等
+├── dist/                       # 构建产物（wxbot.exe）
+├── Makefile                    # 构建脚本（推荐通过 make 构建）
+├── pythondemo.py               # 旧 Python 示例（仅作对照，不参与构建）
+├── NoveLoader.dll              # 加载器 DLL（需自行准备，运行时放在 exe 同目录）
+└── NoveHelper.dll              # 助手 DLL（需自行准备，运行时放在 exe 同目录）
 ```
 
 ## 核心功能模块
 
-### 1. HTTP API 服务层 (internal/api)
+### 1. HTTP API 服务层（`internal/api`）
 
 提供完整的 RESTful API 接口：
 
-#### 微信操作接口
-- `GET /api/wechat/status` - 检查服务状态
-- `GET /api/wechat/login-info` - 获取登录信息（同步）
-- `GET /api/user-info` - 获取用户信息（别名）
-- `GET /api/wechat/refresh-qrcode` - 刷新二维码（同步）
+#### 微信服务状态 / 登录
+
+- `GET /api/wechat/status`          - 检查微信服务运行状态、当前 ClientID、连接数
+- `GET /api/wechat/login-info`      - 获取当前登录账号信息（同步等待 DLL 回调）
+- `POST /api/wechat/logout`         - 注销当前微信账号
+- `GET /api/wechat/refresh-qrcode`  - 刷新登录二维码（同步）
+
+#### 消息发送
+
+- `POST /api/wechat/send-text`      - 发送普通文本消息（JSON）
+- `POST /api/wechat/send-at-text`   - 发送群 @ 文本消息（支持 @ 全体）
+- `POST /api/wechat/send-image`     - 发送图片消息（`multipart/form-data`，字段：`wxid` + `file`）
+- `POST /api/wechat/send-file`      - 发送文件消息（`multipart/form-data`，字段：`wxid` + `file`）
+- `POST /api/wechat/send-card`      - 发送名片消息
+
+#### 好友 / 群管理
+
+- `GET /api/wechat/friend-list`         - 获取好友列表
+- `GET /api/wechat/friend-info`         - 获取指定好友信息（`?wxid=xxx`）
+- `GET /api/wechat/group-list`          - 获取群列表（支持 `detail=0|1`，1 时包含成员列表）
+- `GET /api/wechat/group-member-list`   - 获取群成员列表（`?room_wxid=xxx`）
+- `POST /api/wechat/invite-group-member`- 邀请好友进群
+- `POST /api/wechat/modify-group-name`  - 修改群名称
+
+#### 小程序 / 语音
+
+- `GET /api/wechat/mini-program-code`   - 获取小程序 `code` 及会话信息（`?appid=xxx`）
+- `GET /api/wechat/voice-to-text`       - 语音转文本（`?msgid=xxx`）
 
 #### 配置管理接口
-- `GET /api/config` - 查询完整配置
-- `POST /api/config` - 创建配置
-- `PUT /api/config` - 更新完整配置
-- `DELETE /api/config` - 删除配置
-- `GET /api/config/{key}` - 查询单项配置
-- `PUT /api/config/{key}` - 更新单项配置
+
+- `GET /api/config`         - 查询完整配置
+- `POST /api/config`        - 创建配置
+- `PUT /api/config`         - 更新完整配置
+- `DELETE /api/config`      - 删除配置（恢复默认）
+- `GET /api/config/{key}`   - 查询单项配置
+- `PUT /api/config/{key}`   - 更新单项配置
 
 #### 健康检查
-- `GET /health` - 服务健康检查
+
+- `GET /health`             - 服务健康检查（不依赖微信 DLL）
 
 #### 中间件
-- **日志中间件**：记录所有 HTTP 请求
-- **CORS 中间件**：支持跨域请求
-- **恢复中间件**：捕获 panic 并返回 500
-- **内容类型中间件**：验证 Content-Type
-- **Basic 认证中间件**：可选的 HTTP Basic 认证
 
-### 2. 配置管理 (internal/config)
+- **日志中间件**：记录所有 HTTP 请求（方法、路径、状态码、耗时）
+- **CORS 中间件**：统一跨域配置
+- **恢复中间件**：捕获 `panic` 并返回 500
+- **内容类型中间件**：校验 `Content-Type`，仅允许 `application/json` / `multipart/form-data`
+- **Basic 认证中间件**：当配置中存在 `auth` 时启用 HTTP Basic 认证
+- **微信服务中间件**：对 `/api/wechat/*`（除 `/status`）自动检查微信服务是否已启动
 
-- 支持 JSON 配置文件（默认 `config.json`）
-- 动态更新配置无需重启
-- HTTP Basic 认证用户管理
+### 2. 配置管理（`internal/config`）
+
+- 支持 JSON 配置文件（默认 `config.json`，首次运行自动生成）
+- 动态更新配置无需重启（通过 HTTP 接口修改后实时生效）
+- 支持 HTTP Basic 认证用户列表
+- 支持微信消息回调地址配置
 - 线程安全的配置读写
 - 默认监听 `0.0.0.0:5000`
 
+配置字段说明：
+
+- `host`：HTTP 服务监听地址，默认 `"0.0.0.0"`
+- `port`：HTTP 服务端口，默认 `5000`
+- `auth`：HTTP Basic 认证用户列表（为空则关闭认证）
+- `log_recv_callback`：是否打印 DLL 回调消息日志（`0` 关闭，`1` 开启，默认 `1`）
+- `callback_urls`：消息回调地址数组，当非空时会向这些地址推送部分消息
+
 配置示例：
+
 ```json
 {
   "host": "0.0.0.0",
@@ -95,6 +127,10 @@ wxbot-new/
       "username": "admin",
       "password": "password123"
     }
+  ],
+  "log_recv_callback": 1,
+  "callback_urls": [
+    "http://127.0.0.1:8080/wx/callback"
   ]
 }
 ```
@@ -113,34 +149,55 @@ wxbot-new/
 - 定期清理过期请求
 - 基于消息类型 + ClientID 匹配响应
 
+#### 消息回调推送
+
+- 使用 `callback_urls` 配置一组 HTTP 回调地址
+- 当收到特定消息类型（如聊天消息、登录/登出、好友/群事件等，范围大致为 `11046-11054` 及部分扩展码）时：
+  - 以 `POST application/json` 向每个地址推送一条记录
+  - 请求体格式：
+
+```json
+{
+  "client_id": 12345,
+  "msg_type": 11046,
+  "data": { }
+}
+```
+
+其中 `data` 字段结构可参考 `internal/message/types.go` 中相关数据结构定义。
+
 
 ### 4. DLL 加载层 (internal/loader)
 
-#### DLL 函数调用 (loader.go)
+#### DLL 函数调用（`loader.go` + `manual_map_windows.go`）
+
 - 通过**硬编码偏移地址**调用 DLL 非导出函数
+- 使用手动映射（Manual DLL Mapping）和动态 Windows API 调用加载 `NoveLoader.dll`
 - 使用 `syscall.Syscall9` 进行底层调用
 - 支持的操作：
   - 初始化微信 Socket
-  - 注入微信进程
+  - 注入微信进程（多种方式：普通、PID、多开）
   - 发送数据到微信
   - 销毁连接
-  - 多种注入方式（PID 注入、多开等）
 
-#### 回调系统 (callback.go)
+#### 回调系统（`callback.go`）
+
 - **连接回调**：客户端连接时触发
 - **接收消息回调**：收到微信消息时触发
 - **断开回调**：客户端断开时触发
-- 使用CGO调用DLL函数
-- 自动解析 JSON 数据
-- 线程安全的回调链管理
+- 使用 CGO 提供纯 C 回调函数，DLL 侧只看到标准 C 函数指针
+- 自动解析 JSON 并统一转换为 `map[string]interface{}` 传给上层
+- 线程安全的回调链管理（支持多回调同时注册）
 
 
 ## 快速开始
 
 ### 环境要求
 - Go 1.18+
-- Windows 系统
-- `vcruntime140.dll` `msvcp140.dll` (注意这是变种并非真实文件名, 自行获取后与 `wxbot.exe` 放在同一目录)
+- 构建环境：macOS / Linux / Windows，需支持交叉编译
+- 目标运行环境：32 位 Windows
+- MinGW-w64 交叉编译器：`i686-w64-mingw32-gcc`（macOS/Linux）
+- 运行时依赖：`NoveLoader.dll`、`NoveHelper.dll` 及对应 VC 运行库（`vcruntime140.dll`、`msvcp140.dll` 等，需与 exe 放在同一目录）
 
 ### 编译运行
 
@@ -148,20 +205,21 @@ wxbot-new/
 # 使用 Makefile 编译（推荐）
 make build
 
-# 手动编译（32 位 Windows）
-GOOS=windows GOARCH=386 CGO_ENABLED=0 go build -o dist/wxbot.exe main.go
+# 手动编译（32 位 Windows，启用 CGO）
+GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=i686-w64-mingw32-gcc go build -o dist/wxbot.exe .
 
-# 运行
+# 运行（在 Windows 上）
 cd dist
 wxbot.exe
 ```
 
 ### 启动流程
 
-1. **首次运行**会自动生成 `config.json` 配置文件
-2. **延迟 3 秒**后创建共享内存（给微信进程启动时间）
-3. **HTTP API 服务**启动在 `http://0.0.0.0:5000`
-4. **微信服务**自动初始化并注入 DLL
+1. 首次运行自动生成 `config.json` 配置文件（如不存在）
+2. 创建共享内存 `windows_shell_global__`，写入固定密钥（供 DLL/微信进程探测）
+3. 经过 2~6 秒随机延迟后开始执行注入逻辑（降低被检测概率）
+4. 启动 HTTP API 服务，默认监听 `http://0.0.0.0:5000`
+5. 初始化微信服务、加载 DLL、注册回调、启动心跳与自动重连协程
 
 ### HTTP API 使用示例
 
@@ -174,11 +232,12 @@ curl http://localhost:5000/api/wechat/status
 ```json
 {
   "code": 0,
-  "message": "success",
+  "message": "状态检查完成",
   "data": {
+    "running": true,
+    "message": "微信服务正常运行",
     "client_id": 12345,
-    "connected_clients": 1,
-    "is_running": true
+    "connected_count": 1
   }
 }
 ```
@@ -243,33 +302,33 @@ curl -X PUT http://localhost:5000/api/config/port \
 
 ### 自定义消息处理
 
-修改 `internal/service/service.go` 中的 `registerCallbacks()` 方法：
+推荐通过配置 `callback_urls` 将消息推送给自建 HTTP 服务，在外部实现业务逻辑。
 
-```go
-// 接收消息回调
-s.loader.GetCallbackManager().AddRecvCallback(func(clientID uintptr, msgType int, data map[string]interface{}) {
-    switch message.MessageType(msgType) {
-    case message.MTChatMessage:
-        // 处理聊天消息
-        log.Printf("收到聊天消息: %v", data)
+1. 在 `config.json` 中添加回调地址：
 
-        // 自动回复示例
-        content, _ := data["content"].(string)
-        fromWxid, _ := data["fromWxid"].(string)
-        if content == "ping" {
-            s.HelperSendText(fromWxid, "pong")
-        }
-
-    case message.MTUserLogin:
-        // 处理用户登录事件
-        log.Printf("用户登录: %v", data)
-
-    case message.MTUserLogout:
-        // 处理用户登出事件
-        log.Printf("用户登出: %v", data)
-    }
-})
+```json
+{
+  "callback_urls": [
+    "http://127.0.0.1:8080/wx/callback"
+  ]
+}
 ```
+
+2. 当收到聊天消息、登录/登出等事件时，WxBot 会向上述地址发送 `POST` 请求：
+
+```json
+{
+  "client_id": 12345,
+  "msg_type": 11046,
+  "data": {
+    "...": "具体字段见 internal/message/types.go"
+  }
+}
+```
+
+3. 在你的服务中根据 `msg_type` 和 `data` 进行路由与处理，例如收到聊天消息后自动回复、转发到 IM/队列等。
+
+如需在进程内直接处理消息，可按需修改 `internal/service/service.go` 中的 `registerCallbacks()`，在现有回调逻辑中插入自定义处理代码。
 
 ## 技术架构
 
@@ -357,7 +416,7 @@ startHeartbeat() 协程 (每60秒)
 3. **微信版本兼容性**：确保 DLL 与微信版本兼容，偏移地址硬编码
 4. **安全性警告**：DLL 注入属于侵入性操作，请在授权环境下使用
 5. **仅供学习**：本项目仅供学习交流，请勿用于非法用途
-6. **更多 API 文档**：https://www.showdoc.com.cn/2447538212104511 (密码: qqq222..)
+6. **更多 API 文档**：详见顶部 Apifox/ShowDoc 链接
 
 ## 常见问题
 
@@ -365,7 +424,7 @@ startHeartbeat() 协程 (每60秒)
 A: 确保编译为 32 位（`GOARCH=386`），且 DLL 文件在程序同目录
 
 **Q: 如何启用调试日志？**
-A: 在代码中调用 `loader.SetDebugMode(true)`
+A: 在代码中调用 `loader.SetDebugMode(true)` 可打印 DLL 回调的原始 JSON 数据（默认仅输出解析后的结构化日志）
 
 **Q: HTTP API 如何认证？**
 A: 在 `config.json` 中配置 `auth` 字段，启用 HTTP Basic 认证

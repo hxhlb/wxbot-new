@@ -43,7 +43,7 @@ func getDefaultConfig() *Config {
 		Host:            "0.0.0.0",
 		Port:            5000,
 		Auth:            []AuthUser{}, // 默认空数组,不启用认证
-		LogRecvCallback: 0,            // 默认开启接收消息回调日志
+		LogRecvCallback: 1,            // 默认开启接收消息回调日志
 		CallbackURLs:    []string{},   // 默认无回调地址
 	}
 }
