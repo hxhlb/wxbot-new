@@ -5,7 +5,7 @@
 - Apifox: [https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5](https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5)  
 - ShowDoc: [DLL调用接口文档 - ShowDoc](https://www.showdoc.com.cn/2447538212104511) （密码: `qqq222..`）
 
-**本项目不提供所需的 DLL 文件，请自行根据实际情况准备 `NoveLoader.dll`、`NoveHelper.dll` 以及运行所需的 VC 运行库。**   
+**请自行根据实际情况准备 `NoveLoader.dll`、`NoveHelper.dll` 注入文件**   
 **本项目会有封号风险，自行承担后果**
 
 ## 项目特性
