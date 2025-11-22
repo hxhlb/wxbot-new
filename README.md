@@ -1,13 +1,12 @@
 # WxBot New
 
-基于 DLL 注入技术的微信 (**版本 4.1.2.17**) 机器人服务，提供 HTTP API 接口进行微信自动化控制（仅支持 32 位 Windows）。  
+基于 DLL 注入技术的微信 (**版本 4.1.2.17**) 机器人服务，提供 HTTP API 接口进行微信自动化控制。  
 接口文档（示例）：  
 - Apifox: [https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5](https://s.apifox.cn/ea510d91-eb57-498a-924c-c35a2e9c1ea5)  
-- ShowDoc: https://www.showdoc.com.cn/2447538212104511 （密码: `qqq222..`）
+- ShowDoc: [DLL调用接口文档 - ShowDoc](https://www.showdoc.com.cn/2447538212104511) （密码: `qqq222..`）
 
-**本项目不提供所需的 DLL 文件，请自行根据实际情况准备 `NoveLoader.dll`、`NoveHelper.dll` 以及运行所需的 VC 运行库。**
-
-当前程序版本（日志中输出）：`v0.0.7`。
+**本项目不提供所需的 DLL 文件，请自行根据实际情况准备 `NoveLoader.dll`、`NoveHelper.dll` 以及运行所需的 VC 运行库。**   
+**本项目会有封号风险，自行承担后果**
 
 ## 项目特性
 
@@ -56,6 +55,7 @@ wxbot-new/
 - `GET /api/wechat/refresh-qrcode`  - 刷新登录二维码（同步）
 
 #### 消息发送
+> 半协议半Hook
 
 - `POST /api/wechat/send-text`      - 发送普通文本消息（JSON）
 - `POST /api/wechat/send-at-text`   - 发送群 @ 文本消息（支持 @ 全体）
