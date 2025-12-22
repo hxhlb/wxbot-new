@@ -8,6 +8,46 @@
 **请自行根据实际情况准备 `NoveLoader.dll`、`NoveHelper.dll` 注入文件**   
 **本项目会有封号风险，自行承担后果**
 
+---
+
+## 快速开始
+
+### 使用已编译的二进制文件
+1. 在 [Releases](https://github.com/RipperTs/wxbot-new/releases) 页面下载对应版本的 `exe` 程序以及`NoveLoader.dll`、`NoveHelper.dll`文件， 并将其都放在同一个目录下
+2. 下载 4.1.2.17 版本的微信
+3. 启动 exe 程序，此时会自动拉起微信
+4. 扫码登录，完成注入
+
+### 开发
+#### 环境要求
+- Go 1.18+
+- 构建环境：macOS / Linux / Windows，需支持交叉编译
+- 目标运行环境：32 位 Windows
+- MinGW-w64 交叉编译器：`i686-w64-mingw32-gcc`（macOS/Linux）
+- 运行时依赖：`NoveLoader.dll`、`NoveHelper.dll`（需与 exe 放在同一目录）
+
+#### 编译运行
+
+```bash
+# 使用 Makefile 编译（推荐）
+make build
+
+# 手动编译（32 位 Windows，启用 CGO）
+GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=i686-w64-mingw32-gcc go build -o dist/wxbot.exe .
+
+# 运行（在 Windows 上）
+cd dist
+wxbot.exe
+```
+
+### 启动流程
+
+1. 首次运行自动生成 `config.json` 配置文件（如不存在）
+2. 创建共享内存 `windows_shell_global__`，写入固定密钥（供 DLL/微信进程探测）
+3. 经过 2~6 秒随机延迟后开始执行注入逻辑（降低被检测概率）
+4. 启动 HTTP API 服务，默认监听 `http://0.0.0.0:5000`
+5. 初始化微信服务、加载 DLL、注册回调、启动心跳与自动重连协程
+
 ## 项目特性
 
 - ✅ **完整 HTTP API**：RESTful 设计，覆盖登录、消息、好友/群管理等能力
@@ -188,38 +228,6 @@ wxbot-new/
 - 使用 CGO 提供纯 C 回调函数，DLL 侧只看到标准 C 函数指针
 - 自动解析 JSON 并统一转换为 `map[string]interface{}` 传给上层
 - 线程安全的回调链管理（支持多回调同时注册）
-
-
-## 快速开始
-
-### 环境要求
-- Go 1.18+
-- 构建环境：macOS / Linux / Windows，需支持交叉编译
-- 目标运行环境：32 位 Windows
-- MinGW-w64 交叉编译器：`i686-w64-mingw32-gcc`（macOS/Linux）
-- 运行时依赖：`NoveLoader.dll`、`NoveHelper.dll` 及对应 VC 运行库（`vcruntime140.dll`、`msvcp140.dll` 等，需与 exe 放在同一目录）
-
-### 编译运行
-
-```bash
-# 使用 Makefile 编译（推荐）
-make build
-
-# 手动编译（32 位 Windows，启用 CGO）
-GOOS=windows GOARCH=386 CGO_ENABLED=1 CC=i686-w64-mingw32-gcc go build -o dist/wxbot.exe .
-
-# 运行（在 Windows 上）
-cd dist
-wxbot.exe
-```
-
-### 启动流程
-
-1. 首次运行自动生成 `config.json` 配置文件（如不存在）
-2. 创建共享内存 `windows_shell_global__`，写入固定密钥（供 DLL/微信进程探测）
-3. 经过 2~6 秒随机延迟后开始执行注入逻辑（降低被检测概率）
-4. 启动 HTTP API 服务，默认监听 `http://0.0.0.0:5000`
-5. 初始化微信服务、加载 DLL、注册回调、启动心跳与自动重连协程
 
 ### HTTP API 使用示例
 
