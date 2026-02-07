@@ -482,6 +482,44 @@ func (h *WeChatHandler) SendCardMessage(w http.ResponseWriter, r *http.Request) 
 	SuccessResponse(w, "发送名片消息成功", nil)
 }
 
+// SendURLMessage 发送链接消息
+func (h *WeChatHandler) SendURLMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		ErrorResponse(w, http.StatusMethodNotAllowed, "仅支持 POST 方法")
+		return
+	}
+
+	var req struct {
+		Wxid     string `json:"wxid"`
+		Title    string `json:"title"`
+		Desc     string `json:"desc"`
+		URL      string `json:"url"`
+		ImageURL string `json:"image_url"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "请求体不是有效的JSON")
+		return
+	}
+
+	if req.Wxid == "" {
+		ErrorResponse(w, http.StatusBadRequest, "wxid不能为空")
+		return
+	}
+	if req.URL == "" {
+		ErrorResponse(w, http.StatusBadRequest, "url不能为空")
+		return
+	}
+
+	if err := h.wechatService.HelperSendURL(req.Wxid, req.Title, req.Desc, req.URL, req.ImageURL); err != nil {
+		log.Printf("发送链接消息失败: %v", err)
+		ErrorResponse(w, http.StatusInternalServerError, "发送链接消息失败: "+err.Error())
+		return
+	}
+
+	SuccessResponse(w, "发送链接消息成功", nil)
+}
+
 // ModifyGroupName 修改群名称
 func (h *WeChatHandler) ModifyGroupName(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

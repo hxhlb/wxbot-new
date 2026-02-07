@@ -78,6 +78,8 @@ func (r *Router) RegisterRoutes() http.Handler {
 	r.mux.HandleFunc("/api/wechat/send-file", r.wechatHandler.SendFileMessage)
 	// 发送名片消息
 	r.mux.HandleFunc("/api/wechat/send-card", r.wechatHandler.SendCardMessage)
+	// 发送链接消息
+	r.mux.HandleFunc("/api/wechat/send-url", r.wechatHandler.SendURLMessage)
 
 	// 应用中间件链
 	handler := Chain(
